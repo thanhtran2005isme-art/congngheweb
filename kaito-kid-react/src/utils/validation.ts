@@ -1,11 +1,23 @@
 // Validation helpers - từ login.js
 
 export function validateEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/**
+ * Chuẩn hóa số điện thoại nhập từ form/autofill.
+ * Chỉ giữ chữ số để tránh khoảng trắng, dấu gạch, ký tự ẩn hoặc icon
+ * làm một số điện thoại hợp lệ bị báo sai.
+ */
+export function normalizePhone(phone: string): string {
+  return phone
+    .normalize('NFKC')
+    .replace(/[^0-9]/g, '');
 }
 
 export function validatePhone(phone: string): boolean {
-  return /^[0-9]{10,11}$/.test(phone.replace(/\s/g, ''));
+  const normalized = normalizePhone(phone);
+  return /^[0-9]{10,11}$/.test(normalized);
 }
 
 export function checkPasswordStrength(password: string): 'weak' | 'medium' | 'strong' {
