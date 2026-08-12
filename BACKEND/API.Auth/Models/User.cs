@@ -13,7 +13,7 @@ public class User
     [Column("AnhDaiDien")] public string? Avatar { get; set; }
     [Column("VaiTro")] public string Role { get; set; } = "user";
     [Column("RefreshToken")] public string? RefreshToken { get; set; }
-    [Column("RefreshTokenExpiry")] public DateTime? RefreshTokenExpiry { get; set; }
+    [Column("HanRefreshToken")] public DateTime? RefreshTokenExpiry { get; set; }
     [Column("EmailDaXacThuc")] public bool EmailVerified { get; set; }
     [Column("SDTDaXacThuc")] public bool PhoneVerified { get; set; }
     [Column("NhaCungCap")] public string? Provider { get; set; }
