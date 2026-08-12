@@ -1,0 +1,197 @@
+:root {
+    --bodyBack: #00827f;
+    --textColor: #1b2741;
+    --starColor: #f67034;
+    --sectionBack: #f7f6f9;
+  }
+  .BanChay {
+    margin-left: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  
+  
+    .tieude h2 {
+      text-align: center;
+      font-size: 3em;
+      color: black;
+      margin-bottom: 40px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+  
+    .sanphams {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 30px;
+      /* justify-content: center;
+      padding: 0 15p; */
+    }
+  
+    .sanpham {
+      background-color: var(--sectionBack);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.3s ease;
+      position: relative;
+    }
+  
+  .sanpham:hover {
+    transform: translateY(-10px);
+  }
+  
+  .image {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  
+  .image img {
+    width: 100%;
+    max-width: 200px;
+    border-radius: 10px;
+  }
+  
+  .namePrice {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .namePrice h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--textColor);
+  }
+  
+  .namePrice span {
+    color: var(--starColor);
+    font-weight: bold;
+  }
+  
+  .sanpham p {
+    font-size: 0.95em;
+    color: #333;
+    margin-bottom: 10px;
+  }
+  .bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+  }
+  
+  .stars {
+    color: var(--starColor);
+    font-size: 14px;
+  }
+  
+  .buy {
+    text-align: right;
+    margin: 0;
+  }
+  
+  .buy button {
+    padding: 8px 20px;
+    border-radius: 20px;
+    border: none;
+    background-color: var(--textColor);
+    color: var(--sectionBack);
+    font-size: 14px;
+    text-transform: capitalize;
+    cursor: pointer;
+    transition: .3s ease;
+  }
+  
+  .buy button:hover {
+    transform: scale(1.05);
+  } button:hover {
+    background-color: #12203b;
+  }
+  
+  .view-all {
+    text-align: center;
+    margin-top: 0px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #007bff;
+    cursor: pointer;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .sanphams {
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .tieude h2 {
+      font-size: 2.5em;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .BanChay {
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+
+    .tieude h2 {
+      font-size: 1.8em;
+      margin-bottom: 25px;
+      letter-spacing: 1px;
+    }
+
+    .sanphams {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .sanpham {
+      padding: 12px;
+    }
+
+    .image img {
+      max-width: 150px;
+    }
+
+    .namePrice h3 {
+      font-size: 14px;
+    }
+
+    .namePrice span {
+      font-size: 14px;
+    }
+
+    .sanpham p {
+      font-size: 12px;
+    }
+
+    .buy button {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .view-all {
+      margin-top: 15px;
+      font-size: 14px;
+      padding: 8px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .sanphams {
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    .sanpham {
+      max-width: 100%;
+    }
+  }
+  

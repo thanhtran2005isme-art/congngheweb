@@ -1,0 +1,171 @@
+/* Lookbook Page CSS */
+
+.lookbook-page .lookbook-hero {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  color: white;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.lookbook-page .lookbook-hero h1 {
+  font-size: 48px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  letter-spacing: 4px;
+}
+
+.lookbook-page .lookbook-hero p {
+  font-size: 18px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.lookbook-page .lookbook-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+/* Style Tabs */
+.lookbook-page .style-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.lookbook-page .style-tab {
+  padding: 12px 24px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.lookbook-page .style-tab:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.lookbook-page .style-tab.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+/* Lookbook Grid */
+.lookbook-page .lookbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 30px;
+}
+
+.lookbook-page .lookbook-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.lookbook-page .lookbook-image {
+  position: relative;
+  height: 500px;
+}
+
+.lookbook-page .lookbook-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.lookbook-page .lookbook-card:hover .lookbook-image img {
+  transform: scale(1.05);
+}
+
+.lookbook-page .lookbook-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 30px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: white;
+  transform: translateY(60px);
+  transition: transform 0.3s ease;
+}
+
+.lookbook-page .lookbook-card:hover .lookbook-overlay {
+  transform: translateY(0);
+}
+
+.lookbook-page .lookbook-overlay h3 {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.lookbook-page .lookbook-overlay p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.lookbook-page .lookbook-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.lookbook-page .product-tag {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.lookbook-page .btn-shop-look {
+  padding: 12px 24px;
+  background: white;
+  color: #1f2937;
+  border: none;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.lookbook-page .btn-shop-look:hover {
+  background: #667eea;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .lookbook-page .lookbook-hero h1 {
+    font-size: 32px;
+  }
+  
+  .lookbook-page .lookbook-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .lookbook-page .lookbook-image {
+    height: 400px;
+  }
+  
+  .lookbook-page .style-tabs {
+    gap: 8px;
+  }
+  
+  .lookbook-page .style-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}

@@ -1,0 +1,381 @@
+/* ============================================
+   CART PAGE - IVY MODA STYLE
+   ============================================ */
+
+.ivy-cart-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
+
+/* ---- Progress Steps ---- */
+.ivy-cart-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 35px;
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.ivy-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ivy-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ccc;
+  transition: all 0.3s ease;
+}
+
+.ivy-step span {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.ivy-step.active .ivy-step-num {
+  border-color: #d32f2f;
+  background: #d32f2f;
+  color: #fff;
+}
+
+.ivy-step.active span {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.ivy-step-line {
+  width: 80px;
+  height: 1px;
+  background: #ddd;
+  margin: 0 12px;
+}
+
+/* ---- Layout ---- */
+.ivy-cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 30px;
+  align-items: start;
+}
+
+/* ---- Left: Cart Items ---- */
+.ivy-cart-left {
+  min-width: 0;
+}
+
+.ivy-cart-title {
+  font-size: 16px;
+  font-weight: 400;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.ivy-cart-title strong {
+  font-weight: 700;
+  font-style: italic;
+  color: #d32f2f;
+}
+
+/* Table header */
+.ivy-cart-header {
+  display: grid;
+  grid-template-columns: 1fr 120px 140px 160px;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Cart item row */
+.ivy-cart-item {
+  display: grid;
+  grid-template-columns: 1fr 120px 140px 160px;
+  gap: 10px;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+}
+
+.ivy-item-info {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.ivy-item-img {
+  flex-shrink: 0;
+}
+
+.ivy-item-img img {
+  width: 80px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.ivy-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.ivy-item-name:hover {
+  color: #666;
+}
+
+.ivy-item-variant {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.ivy-discount-text {
+  font-size: 13px;
+  color: #ccc;
+}
+
+/* Quantity control */
+.ivy-qty-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #ddd;
+}
+
+.ivy-qty-control button {
+  width: 32px;
+  height: 32px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.ivy-qty-control button:hover {
+  background: #f5f5f5;
+}
+
+.ivy-qty-control input {
+  width: 36px;
+  height: 32px;
+  text-align: center;
+  border: none;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  outline: none;
+}
+
+/* Total + remove */
+.ivy-col-total {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ivy-item-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.ivy-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  font-size: 14px;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.ivy-remove-btn:hover {
+  color: #d32f2f;
+}
+
+/* Continue shopping */
+.ivy-cart-continue {
+  margin-top: 24px;
+}
+
+.ivy-btn-continue {
+  display: inline-block;
+  padding: 10px 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.ivy-btn-continue:hover {
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+}
+
+/* ---- Right: Summary ---- */
+.ivy-summary-box {
+  border: 1px solid #e0e0e0;
+  padding: 24px;
+}
+
+.ivy-summary-box h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.ivy-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.ivy-summary-bold {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.ivy-price-red {
+  color: #d32f2f;
+  font-weight: 700;
+}
+
+.ivy-summary-notes {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+
+.ivy-summary-notes p {
+  font-size: 11px;
+  color: #888;
+  margin: 0 0 8px;
+  line-height: 1.5;
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.ivy-summary-notes p i {
+  color: #d32f2f;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.ivy-btn-order {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #1a1a1a;
+  color: #fff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 18px;
+  transition: background 0.25s ease;
+}
+
+.ivy-btn-order:hover {
+  background: #333;
+}
+
+/* ---- Empty cart ---- */
+.ivy-cart-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.ivy-cart-empty i {
+  font-size: 48px;
+  color: #ddd;
+  margin-bottom: 16px;
+}
+
+.ivy-cart-empty h3 {
+  font-size: 18px;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.ivy-cart-empty p {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 20px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .ivy-cart-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .ivy-cart-header {
+    display: none;
+  }
+  
+  .ivy-cart-item {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .ivy-col-discount {
+    display: none;
+  }
+  
+  .ivy-col-qty,
+  .ivy-col-total {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .ivy-cart-steps {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .ivy-step-line {
+    width: 30px;
+  }
+}

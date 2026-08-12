@@ -1,0 +1,596 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+  box-sizing: border-box;
+  /* overflow-x: hidden; */
+}
+.header-banner {
+  background-color: #333;
+  color: white;
+  padding: 10px 0;
+}
+.header-i-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 30px;
+}
+
+.header-text a {
+  color: #00c8ff;
+  font-size: 20px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.contact-info a {
+  color: #00c8ff;
+  font-size: 20px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.header-i-inner a:hover {
+  color: #ffcc00;
+}
+/* Menu */
+/* Existing styles */
+.header-menu {
+  position: sticky;
+  top: 0;
+  z-index: 999; /* đảm bảo nằm trên các phần khác */
+  background-color: #fff; /* nên có màu nền để không trong suốt */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* tuỳ chọn để tạo bóng nhẹ */
+}
+
+/* Bố cục tổng thể */
+.menu {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+/* Logo */
+.logo img {
+  width: 150px;
+}
+
+.menu-1 {
+  background-color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+
+.menu-1 ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-1 > ul {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Mỗi item menu */
+.menu-1 ul li {
+  position: relative;
+}
+
+.menu-1 ul li a {
+  display: block;
+  padding: 20px 15px;
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Hiệu ứng underline */
+.menu-1 ul li a::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  background: #ffda79;
+  bottom: 0;
+  left: 50%;
+  transition: all 0.3s ease;
+}
+
+.menu-1 ul li a:hover::after {
+  width: 100%;
+  left: 0;
+}
+
+/* Hover cấp 1 */
+.menu-1 ul > li > a:hover {
+  color: #00c8ff;
+}
+
+/* Menu con cấp 1 */
+.menu-1 .dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #fff;
+  min-width: 220px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.menu-1 li:hover > .dropdown-menu {
+  display: block;
+}
+
+/* Menu con cấp 2 */
+.menu-1 .dropdown-menu .dropdown {
+  position: relative;
+}
+
+.menu-1 .dropdown-submenu {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  background-color: #fff;
+  min-width: 200px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.menu-1 .dropdown-menu li:hover > .dropdown-submenu {
+  display: block;
+}
+
+/* Style cho các cấp submenu */
+.menu-1 .dropdown-menu li a {
+  font-weight: normal;
+  padding: 12px 15px;
+  color: #333;
+  transition: all 0.3s ease;
+}
+
+.menu-1 .dropdown-menu li a:hover {
+  color: #e60023;
+}
+
+/* Hover màu riêng cho các cấp */
+.menu-1 .dropdown-menu ul li a:hover {
+  color: #ffcc00;
+}
+
+.menu-1 .dropdown-submenu ul li a:hover {
+  color: #b81111;
+}
+
+/* Mũi tên phải cho submenu */
+.menu-1 .dropdown-menu li a i.fa-angle-right {
+  float: right;
+  margin-top: 2px;
+}
+
+/* Thanh tìm kiếm */
+.search {
+  box-sizing: border-box;
+  position: relative;
+  height: 40px;
+}
+.search .input {
+  background-color: #00ebff;
+  border: 0;
+  font-size: 16px;
+  color: #1e272e;
+  padding: 15px;
+  height: 15px;
+  width: 20px;
+  transition: width 0.8s ease;
+  border-top-right-radius: 25px;
+  border-bottom-right-radius: 25px;
+  border-top-left-radius: 25px;
+  border-bottom-left-radius: 25px;
+}
+.btn {
+  background-color: #00ebff;
+  border: 0;
+  cursor: pointer;
+  font-size: 25px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 45px;
+  width: 50px;
+  transition: 0.8s ease;
+  border-radius: 50%;
+}
+.btn:hover {
+  background-color: #0edbed;
+}
+.btn:focus,
+.input:focus {
+  outline: none;
+}
+.search.active .input {
+  width: 160px;
+}
+.search.active .btn {
+  transform: translateX(140px);
+}
+.user-actions {
+  display: flex;
+  align-items: center;
+}
+
+.user-actions .account,
+.user-actions .cart {
+  margin-left: 30px;
+  font-size: 15px;
+}
+.user-actions a {
+  text-decoration: none;
+}
+/* --------------------------------------------------------------------Menu --------------------------------------------------------------------*/
+
+#content {
+  width: 100%;
+  min-height: 368px;
+  margin: 0px auto;
+  height: auto;
+  overflow: hidden;
+}
+
+#slide-show {
+  width: 100%;
+  height: 440px;
+  margin-top: 30px;
+}
+
+.slide-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.slide-image {
+  width: 100%;
+  height: auto;
+}
+
+.slide-controls {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.arrow {
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+}
+
+.left-arrow {
+  margin-left: 10px;
+}
+
+.right-arrow {
+  margin-right: 10px;
+}
+
+.arrow:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+/* footer */
+footer {
+  background-color: #1c1c1c;
+  padding: 20px 0;
+  color: white;
+  width: 100%;
+}
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+.footer-column {
+  width: 25%;
+}
+.footer-column h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.footer-column a {
+  color: white;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 8px;
+  /* font-size: 30px; */
+}
+.footer-column a:hover {
+  color: #ff8c00;
+}
+.social-links {
+  display: flex;
+  gap: 10px;
+}
+.social-links a {
+  font-size: 30px;
+  padding: 11px;
+}
+.social-links img {
+  width: 30px;
+  height: 30px;
+}
+.newsletter input {
+  padding: 10px;
+  width: 80%;
+  margin-right: 10px;
+}
+.newsletter button {
+  padding: 10px 15px;
+  background-color: #ff8c00;
+  border: none;
+  cursor: pointer;
+}
+
+.fixed-icon {
+  width: 60px;
+  height: 280px;
+  position: fixed;
+  right: 0;
+  top: 30rem;
+  display: flex;
+  flex-direction: column;
+  z-index: 3;
+}
+
+.fixed-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 10px;
+  z-index: 1000;
+}
+
+.fixed-icon .icons.phone a {
+  display: block;
+  background-color: #00aaff;
+  padding: 10px;
+  border-radius: 50%;
+  color: white;
+  font-size: 20px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#back-to-top {
+  background-color: #1c1c1c;
+  border-radius: 100%;
+  text-align: center;
+  margin-top: 5px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+#back-to-top.back-to-top {
+  height: 40px;
+  width: 40px;
+}
+#back-to-top svg {
+  width: 15px;
+  height: 24px;
+  color: white;
+  padding-top: 7px;
+  transition: transform 0.3s ease-in-out;
+}
+#back-to-top path {
+  height: 15px;
+  width: 9px;
+}
+
+#back-to-top:hover svg {
+  transform: translateY(-5px);
+}
+/* trangchu//// */
+.breadcrumb {
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #333;
+  padding: 15px 20px;
+  background-color: #fff;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  text-transform: uppercase;
+}
+
+.breadcrumb a {
+  color: #000;
+  text-decoration: none;
+  margin: 0 5px;
+  transition: color 0.3s ease;
+}
+
+.breadcrumb a:hover {
+  color: #00c8ff;
+}
+
+.breadcrumb span {
+  margin-left: 5px;
+  color: #555;
+}
+
+.menu-icons {
+  display: none;
+}
+
+/* Responsive Header */
+@media (max-width: 768px) {
+  .header-banner {
+    display: none;
+  }
+
+  .menu {
+    position: relative; /* THÊM DÒNG NÀY */
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+  }
+
+  .menu-icons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: auto;
+  }
+  .menu-1 {
+    display: none;
+    position: absolute; /* Cho phép gắn menu ngay sau hamburger */
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 999;
+    width: 100%;
+    background-color: #fff;
+    flex-direction: column;
+    padding: 10px 0;
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .menu-1.active {
+    display: flex;
+  }
+  .menu-1 > ul {
+    flex-direction: column;
+    width: 100%;
+  }
+  .menu-1 ul li {
+    width: 100%;
+    position: relative;
+  }
+  .menu-1 ul li a {
+    padding: 15px 10px;
+    font-size: 18px;
+  }
+  .menu-icons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: auto;
+  }
+  .menu-icons .icon i,
+  .menu-icons .mobile-toggle i {
+    font-size: 22px;
+    color: #333;
+  }
+
+  .user-actions,
+  .search {
+    display: none !important;
+  }
+
+  .mobile-toggle {
+    display: block;
+    cursor: pointer;
+  }
+
+  .logo img {
+    width: 120px;
+    height: auto;
+  }
+}
+
+.cart-count {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background-color: red;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  footer {
+    padding: 20px 10px;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    padding: 0;
+    gap: 20px;
+  }
+
+  .footer-column {
+    width: 100%;
+    padding: 10px 0;
+    border-bottom: 1px solid #555;
+  }
+
+  .footer-column h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+
+  .footer-column a,
+  .footer-column p,
+  .footer-column span {
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.8;
+  }
+
+  .footer-column a:hover {
+    color: #ff8c00;
+  }
+
+  .social-links {
+    justify-content: start;
+    gap: 15px;
+  }
+
+  .social-links a {
+    font-size: 22px;
+    padding: 5px;
+  }
+
+  .newsletter {
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .newsletter input {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .newsletter button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  footer h3:last-of-type {
+    font-size: 16px;
+    margin-top: 20px;
+    color: #fff;
+  }
+}

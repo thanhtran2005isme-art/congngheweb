@@ -1,0 +1,847 @@
+﻿{
+    "Routes":  [
+                   {
+                       "UpstreamPathTemplate":  "/api/auth/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/auth/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5053
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/auth",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/auth",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5053
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/products/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/products/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/products",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/products",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/search/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/search/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/search",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/search",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/categories/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/categories/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/categories",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/categories",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/cart/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/cart/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/cart",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/cart",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/orders/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/orders/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/orders",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/orders",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/wishlist/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/wishlist/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/wishlist",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/wishlist",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/reviews/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/reviews/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/reviews",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/reviews",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/addresses/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/addresses/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/addresses",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/addresses",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/account/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "PUT",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/account/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/account",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "PUT",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/account",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/coupons/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/coupons/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/coupons",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/coupons",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/collections/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/collections/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/collections",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/collections",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/lookbooks/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/lookbooks/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/lookbooks",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/lookbooks",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/attributes",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/attributes",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/attributes/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/attributes/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin/shipping/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin/shipping/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin/shipping",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin/shipping",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin/chat/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin/chat/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin/chat",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin/chat",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/chat/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/chat/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/chat",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/chat",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5089
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/admin",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/admin",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5089
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/flash-sales/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/flash-sales/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5089
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/shipping/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/shipping/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/shipping",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/shipping",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/payment/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/payment/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/payment",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/payment",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/uploads/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/uploads/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/newsletter/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/newsletter/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/banners",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/banners",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/homepage-blocks",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/homepage-blocks",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/homepage-blocks/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/homepage-blocks/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/notifications",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/notifications",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/notifications/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "PUT",
+                                                  "DELETE",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/notifications/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/api/referral/{everything}",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "POST",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/api/referral/{everything}",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/sitemap.xml",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/sitemap.xml",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   },
+                   {
+                       "UpstreamPathTemplate":  "/robots.txt",
+                       "UpstreamHttpMethod":  [
+                                                  "GET",
+                                                  "OPTIONS"
+                                              ],
+                       "DownstreamPathTemplate":  "/robots.txt",
+                       "DownstreamScheme":  "http",
+                       "DownstreamHostAndPorts":  [
+                                                      {
+                                                          "Host":  "localhost",
+                                                          "Port":  5265
+                                                      }
+                                                  ]
+                   }
+               ],
+    "GlobalConfiguration":  {
+                                "BaseUrl":  "http://localhost:5155"
+                            }
+}

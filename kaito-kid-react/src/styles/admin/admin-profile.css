@@ -1,0 +1,301 @@
+.admin-wrapper .admin-profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-wrapper .admin-profile-hero,
+.admin-wrapper .admin-profile-card,
+.admin-wrapper .admin-profile-tabs {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 22px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+}
+
+.admin-wrapper .admin-profile-hero {
+  overflow: hidden;
+}
+
+.admin-wrapper .admin-profile-cover {
+  height: 180px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.25), transparent 28%),
+    linear-gradient(135deg, #0f172a 0%, #334155 38%, #2563eb 100%);
+}
+
+.admin-wrapper .admin-profile-hero-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  padding: 0 28px;
+  margin-top: -48px;
+}
+
+.admin-wrapper .admin-profile-avatar-wrap {
+  position: relative;
+}
+
+.admin-wrapper .admin-profile-avatar {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.admin-wrapper .admin-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-wrapper .admin-profile-avatar-btn {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--primary-color);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+}
+
+.admin-wrapper .admin-profile-file-input {
+  display: none;
+}
+
+.admin-wrapper .admin-profile-identity h1 {
+  margin: 0 0 10px;
+  font-size: 32px;
+  color: var(--dark);
+}
+
+.admin-wrapper .admin-profile-role,
+.admin-wrapper .admin-profile-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  color: var(--gray-500);
+}
+
+.admin-wrapper .admin-profile-hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.admin-wrapper .admin-profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 24px 28px 28px;
+}
+
+.admin-wrapper .admin-profile-metric-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+.admin-wrapper .admin-profile-metric-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 28px;
+  color: var(--dark);
+}
+
+.admin-wrapper .admin-profile-metric-card span {
+  display: block;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+
+.admin-wrapper .admin-profile-metric-card small {
+  color: var(--gray-500);
+}
+
+.admin-wrapper .admin-profile-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+}
+
+.admin-wrapper .admin-profile-tab {
+  flex: 1;
+  min-width: 150px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--gray-500);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-wrapper .admin-profile-tab.active {
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(99, 102, 241, 0.28);
+}
+
+.admin-wrapper .admin-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.admin-wrapper .admin-profile-card {
+  padding: 24px;
+}
+
+.admin-wrapper .admin-profile-card-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-wrapper .admin-profile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-wrapper .admin-profile-card-header h3 {
+  margin: 0 0 6px;
+  color: var(--dark);
+}
+
+.admin-wrapper .admin-profile-card-header p,
+.admin-wrapper .admin-profile-activity-copy span,
+.admin-wrapper .admin-profile-activity-copy small {
+  margin: 0;
+  color: var(--gray-500);
+}
+
+.admin-wrapper .admin-profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-wrapper .admin-profile-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.admin-wrapper .admin-profile-toggle-list,
+.admin-wrapper .admin-profile-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-wrapper .admin-profile-toggle-row,
+.admin-wrapper .admin-profile-activity-item,
+.admin-wrapper .admin-profile-empty-state {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.admin-wrapper .admin-profile-toggle-row {
+  justify-content: space-between;
+}
+
+.admin-wrapper .admin-profile-toggle-row strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--dark);
+}
+
+.admin-wrapper .admin-profile-toggle-row span {
+  color: var(--gray-500);
+}
+
+.admin-wrapper .admin-profile-toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+}
+
+.admin-wrapper .admin-profile-activity-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary-color);
+}
+
+.admin-wrapper .admin-profile-activity-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-wrapper .admin-profile-activity-copy strong {
+  color: var(--dark);
+}
+
+.admin-wrapper .admin-profile-empty-state {
+  justify-content: center;
+  color: var(--gray-500);
+}
+
+@media (max-width: 1100px) {
+  .admin-wrapper .admin-profile-hero-content,
+  .admin-wrapper .admin-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wrapper .admin-profile-hero-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-wrapper .admin-profile-form-grid,
+  .admin-wrapper .admin-profile-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wrapper .admin-profile-card,
+  .admin-wrapper .admin-profile-metrics {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .admin-wrapper .admin-profile-tabs {
+    flex-direction: column;
+  }
+
+  .admin-wrapper .admin-profile-tab,
+  .admin-wrapper .admin-profile-actions .btn,
+  .admin-wrapper .admin-profile-hero-actions .btn {
+    width: 100%;
+  }
+}

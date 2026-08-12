@@ -1,0 +1,147 @@
+/* samphammoi --------------------------------------------------------------------------------------*/
+.SanPhamMoi {
+  width: 90%;
+  display: flex;
+  justify-content: center;
+  height: 300px;
+  gap: 20px;
+  transition: 0.3s;
+  /* flex-wrap: wrap; */
+}
+.SanPhamMoi li {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 250px;
+  border-radius: 50px;
+  cursor: pointer;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  /* padding-right: 50px; */
+}
+.SanPhamMoi li img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.SanPhamMoi li,
+.SanPhamMoi li img {
+  transition: 0.3s;
+}
+.SanPhamMoi li .content {
+  transition: 1.5s ease;
+}
+.SanPhamMoi span {
+  text-align: center;
+  width: 75%;
+}
+.SanPhamMoi h2 {
+  font-weight: 100;
+  font-size: 20px;
+  line-height: 4px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  color: #fff;
+}
+.SanPhamMoi p {
+  color: #ddd;
+  font-size: 10px;
+  width: 100%;
+}
+
+.SanPhamMoi li .content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  color: #fff;
+  padding: 15px;
+  background: linear-gradient(
+    0deg,
+    rgb(0 0 0 / 70%) 10%,
+    rgb(255 255 255 / 0%) 100%
+  );
+  opacity: 0;
+  visibility: hidden;
+}
+.SanPhamMoi:hover {
+  gap: 0;
+}
+.SanPhamMoi li .content span {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 0px;
+  translate: -50%;
+  scale: 0.85;
+  visibility: hidden;
+  opacity: 0;
+}
+.SanPhamMoi li:hover {
+  flex: 0 1 500px;
+  scale: 1.1;
+  z-index: 10;
+  opacity: 1;
+}
+
+.SanPhamMoi li:hover .content {
+  opacity: 1;
+  visibility: visible;
+}
+.SanPhamMoi li:hover span {
+  scale: 1;
+  opacity: 1;
+  visibility: visible;
+}
+
+
+@media (max-width: 768px) {
+    .SanPhamMoi {
+      flex-direction: column;
+      align-items: center;
+      height: auto;
+      gap: 20px;
+    }
+  
+    .SanPhamMoi li {
+      width: 90%;
+      height: 280px;
+      flex: none;
+      border-radius: 15px;
+      position: relative;
+    }
+  
+    .SanPhamMoi li img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      translate: unset;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  
+    .SanPhamMoi li:hover {
+      flex: none;
+      scale: 1;
+    }
+  
+    .SanPhamMoi li .content {
+      opacity: 1;
+      visibility: visible;
+      background: rgba(0, 0, 0, 0.4);
+    }
+  
+    .SanPhamMoi li .content span {
+      opacity: 1;
+      visibility: visible;
+      scale: 1;
+    }
+  }
+  

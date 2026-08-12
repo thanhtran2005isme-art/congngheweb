@@ -1,0 +1,27 @@
+﻿{
+  "name": "KAITO KID - Thời trang hiện đại",
+  "short_name": "KAITO KID",
+  "description": "Mua sắm thời trang nam, nữ, trẻ em chính hãng tại KAITO KID.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "lang": "vi-VN",
+  "dir": "ltr",
+  "categories": ["shopping", "fashion"],
+  "icons": [
+    {
+      "src": "/images/d53c7593-3c1b-437a-98bc-f71b44050b40.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/d53c7593-3c1b-437a-98bc-f71b44050b40.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

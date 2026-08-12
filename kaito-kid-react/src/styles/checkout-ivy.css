@@ -1,0 +1,647 @@
+/* ============================================
+   CHECKOUT PAGE - IVY MODA STYLE
+   ============================================ */
+
+.ivy-checkout-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
+
+/* Reuse cart steps - add done state */
+.ivy-step.done .ivy-step-num {
+  border-color: #1a1a1a;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11px;
+}
+
+.ivy-step-line.active {
+  background: #1a1a1a;
+}
+
+/* Layout */
+.ivy-checkout-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 30px;
+  align-items: start;
+}
+
+.ivy-checkout-left {
+  min-width: 0;
+}
+
+/* Sections */
+.ivy-checkout-section {
+  margin-bottom: 28px;
+}
+
+.ivy-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+/* Auth buttons */
+.ivy-auth-btns {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ivy-auth-btn {
+  padding: 10px 28px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 1.5px solid #1a1a1a;
+  transition: all 0.2s ease;
+}
+
+.ivy-auth-btn.dark {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.ivy-auth-btn.dark:hover {
+  background: #333;
+}
+
+.ivy-auth-btn.outline {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.ivy-auth-btn.outline:hover {
+  background: #f5f5f5;
+}
+
+.ivy-auth-note {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 16px;
+}
+
+.ivy-error {
+  background: #fff5f5;
+  color: #d32f2f;
+  padding: 10px 14px;
+  font-size: 12px;
+  border: 1px solid #fecaca;
+  margin-bottom: 14px;
+}
+
+/* Form */
+.ivy-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ivy-form-group {
+  position: relative;
+}
+
+.ivy-form-group.full {
+  margin-bottom: 12px;
+}
+
+.ivy-form-group input,
+.ivy-form-group select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #ddd;
+  border-radius: 0;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ivy-form-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.ivy-form-group input:focus,
+.ivy-form-group select:focus {
+  border-color: #1a1a1a;
+}
+
+.ivy-form-group input::placeholder {
+  color: #aaa;
+}
+
+/* Checkout row (shipping + VAT side by side) */
+.ivy-checkout-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.ivy-half {
+  margin-bottom: 0;
+}
+
+/* Radio options */
+.ivy-radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+}
+
+.ivy-radio-option input[type="radio"] {
+  margin-top: 2px;
+  accent-color: #1a1a1a;
+}
+
+.ivy-radio-option small {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  margin-left: 22px;
+}
+
+.ivy-vat-question {
+  font-size: 13px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ivy-vat-question input[type="checkbox"] {
+  accent-color: #1a1a1a;
+}
+
+/* Payment box */
+.ivy-payment-box {
+  border: 1px solid #e0e0e0;
+  padding: 18px;
+}
+
+.ivy-payment-note {
+  font-size: 11px;
+  color: #999;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+/* Show products button */
+.ivy-btn-show-products {
+  display: inline-block;
+  padding: 12px 28px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.2s ease;
+}
+
+.ivy-btn-show-products:hover {
+  background: #333;
+}
+
+/* Order products list */
+.ivy-order-products {
+  margin-top: 16px;
+  border: 1px solid #eee;
+  padding: 14px;
+}
+
+.ivy-order-product-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.ivy-order-product-item:last-child {
+  border-bottom: none;
+}
+
+.ivy-order-product-item img {
+  width: 50px;
+  height: 65px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.ivy-op-name { font-size: 13px; font-weight: 500; color: #1a1a1a; margin: 0 0 2px; }
+.ivy-op-variant { font-size: 11px; color: #999; margin: 0 0 2px; }
+.ivy-op-price { font-size: 13px; font-weight: 600; color: #1a1a1a; margin: 0; }
+
+/* ---- RIGHT: Summary ---- */
+.ivy-checkout-right {
+  position: sticky;
+  top: 80px;
+}
+
+/* Promo box */
+.ivy-promo-box {
+  border: 1px solid #e0e0e0;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.ivy-promo-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.ivy-promo-tabs button {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.ivy-promo-tabs button.active {
+  color: #1a1a1a;
+  font-weight: 600;
+  border-bottom-color: #1a1a1a;
+}
+
+.ivy-promo-input {
+  display: flex;
+  gap: 0;
+}
+
+.ivy-promo-input input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-right: none;
+  font-size: 12px;
+  outline: none;
+}
+
+.ivy-promo-input input:focus {
+  border-color: #1a1a1a;
+}
+
+.ivy-promo-input button {
+  padding: 9px 16px;
+  background: #fff;
+  border: 1px solid #1a1a1a;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a1a1a;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.ivy-promo-input button:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.ivy-promo-applied {
+  font-size: 11px;
+  color: #388e3c;
+  margin-top: 8px;
+}
+
+/* Staff code */
+.ivy-staff-box {
+  margin-top: 12px;
+}
+
+.ivy-staff-box select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  font-size: 12px;
+  color: #999;
+  background: #fff;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+/* Complete button */
+.ivy-btn-complete {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #1a1a1a;
+  color: #fff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background 0.25s ease;
+}
+
+.ivy-btn-complete:hover {
+  background: #333;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .ivy-checkout-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .ivy-checkout-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .ivy-checkout-right {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .ivy-form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .ivy-auth-btns {
+    flex-direction: column;
+  }
+}
+
+
+/* ============================================
+   Refactored Checkout sub-components
+   ============================================ */
+
+.ivy-shipping-tab {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+}
+.ivy-shipping-tab.active {
+  border: 2px solid #ec4899;
+  background: #fdf2f8;
+  color: #be185d;
+}
+
+.ivy-payment-note-error { color: #dc2626 !important; }
+.ivy-fee-amount { color: #dc2626; font-weight: 600; }
+
+/* Modal review/order success */
+.ivy-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.ivy-modal-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Generic primary/secondary buttons used by sub-components */
+.ivy-btn-primary {
+  padding: 12px 24px;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.ivy-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+.ivy-btn-secondary {
+  padding: 12px 24px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Step 3 — Payment QR */
+.ivy-payment-step {
+  max-width: 1100px;
+  margin: 40px auto;
+}
+.ivy-payment-step__header {
+  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+  color: #fff;
+  padding: 20px 24px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ivy-payment-step__header i { font-size: 24px; }
+.ivy-payment-step__header h2 { margin: 0; font-size: 20px; }
+.ivy-payment-step__header p { margin: 4px 0 0; opacity: 0.9; font-size: 13px; }
+
+.ivy-payment-countdown {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #d97706;
+}
+.ivy-payment-countdown.urgent {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+.ivy-payment-countdown i { font-size: 20px; }
+.ivy-payment-countdown__hint { font-size: 11px; color: #92400e; margin-top: 2px; }
+.ivy-payment-countdown__time {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.ivy-payment-expired {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 20px;
+  text-align: center;
+}
+.ivy-payment-expired i { font-size: 36px; color: #dc2626; margin-bottom: 8px; }
+.ivy-payment-expired h3 { margin: 0 0 4px; color: #991b1b; font-size: 18px; }
+.ivy-payment-expired p { color: #7f1d1d; margin: 0 0 16px; font-size: 14px; }
+
+.ivy-payment-step__body {
+  background: #fff;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .ivy-payment-step__body { grid-template-columns: 1fr; }
+}
+.ivy-payment-info h3 { font-size: 16px; margin: 0 0 12px; color: #0f172a; }
+.ivy-payment-info__order { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+.ivy-payment-info__rows { display: grid; gap: 14px; }
+.ivy-label {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+.ivy-amount-pill {
+  background: #dcfce7; color: #166534;
+  padding: 8px 14px; border-radius: 6px;
+  font-weight: 700; font-size: 18px;
+  display: inline-block;
+}
+.ivy-value-bold { font-size: 16px; font-weight: 600; color: #0f172a; }
+.ivy-value-row { display: flex; align-items: center; gap: 8px; }
+.ivy-value-bigred { font-size: 18px; font-weight: 700; color: #dc2626; letter-spacing: 0.05em; }
+.ivy-value-pill { font-size: 15px; font-weight: 700; color: #dc2626; background: #fef2f2; padding: 4px 10px; border-radius: 4px; }
+.ivy-copy-btn {
+  border: none; background: #eff6ff; color: #2563eb;
+  padding: 4px 10px; border-radius: 4px;
+  font-size: 12px; cursor: pointer;
+}
+.ivy-payment-info__note {
+  margin-top: 18px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.6;
+}
+.ivy-payment-qr { text-align: center; }
+.ivy-payment-qr h3 { font-size: 16px; margin: 0 0 12px; color: #0f172a; }
+.ivy-payment-qr__frame {
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  display: inline-block;
+}
+.ivy-payment-qr__frame img { width: 280px; height: auto; display: block; }
+.ivy-payment-qr__hint { margin: 12px 0 8px; font-size: 12px; color: #64748b; }
+
+.ivy-payment-no-bank {
+  padding: 40px;
+  text-align: center;
+  color: #dc2626;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+}
+
+.ivy-payment-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Step 4 — Order completed */
+.ivy-order-completed {
+  max-width: 720px;
+  margin: 60px auto;
+  padding: 48px 40px;
+  background: #fff;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+.ivy-order-completed__icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin-bottom: 24px;
+}
+.ivy-order-completed h1 { margin: 0 0 12px; font-size: 28px; color: #0f172a; }
+.ivy-order-completed > p { margin: 0 0 32px; color: #475569; font-size: 14px; line-height: 1.6; }
+.ivy-order-completed__info {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 28px;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+}
+.ivy-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.ivy-info-row:last-child { margin-bottom: 0; }
+.ivy-info-row span { color: #64748b; font-size: 13px; }
+.ivy-order-completed__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}

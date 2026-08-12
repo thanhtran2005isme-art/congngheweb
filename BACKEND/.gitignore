@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Local secrets — chứa API key (Gemini, GHN, GHTK...). KHÔNG commit.
+appsettings.Development.json
+
+# Model ONNX cho tìm kiếm bằng hình ảnh — file lớn (~350MB), không commit.
+# Lấy/khởi tạo qua API.Customer/Models/clip/export_clip_onnx.py
+*.onnx

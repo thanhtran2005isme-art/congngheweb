@@ -1,0 +1,30 @@
+tunnel: d4356cca-18fb-410b-b664-a905b8bae185
+credentials-file: C:\Users\Admin\.cloudflared\d4356cca-18fb-410b-b664-a905b8bae185.json
+
+ingress:
+  # API calls (check path first)
+  - hostname: kaitokid.io.vn
+    path: ^/api/.*
+    service: http://127.0.0.1:5155
+  
+  # Main website (frontend)
+  - hostname: kaitokid.io.vn
+    service: http://127.0.0.1:5173
+    
+  - hostname: www.kaitokid.io.vn
+    service: http://127.0.0.1:5173
+  
+  # API subdomain (backup)
+  - hostname: api.kaitokid.io.vn
+    service: http://127.0.0.1:5155
+  
+  # API riêng lẻ (nếu cần truy cập trực tiếp)
+  - hostname: auth.kaitokid.io.vn
+    service: http://127.0.0.1:5053
+  - hostname: admin.kaitokid.io.vn
+    service: http://127.0.0.1:5089
+  - hostname: customer.kaitokid.io.vn
+    service: http://127.0.0.1:5265
+  
+  # Catch-all rule (bắt buộc phải có ở cuối)
+  - service: http_status:404

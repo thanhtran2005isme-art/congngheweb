@@ -1,0 +1,14 @@
+﻿# robots.txt for KAITO KID
+User-agent: *
+Allow: /
+
+# Block admin & user-private pages
+Disallow: /admin/
+Disallow: /account
+Disallow: /address
+Disallow: /cart
+Disallow: /checkout
+Disallow: /wishlist
+Disallow: /orders
+
+Sitemap: /sitemap.xml

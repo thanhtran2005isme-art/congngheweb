@@ -1,0 +1,641 @@
+/* ============================================
+   RESPONSIVE STYLES FOR INDEX.HTML
+   Mobile & Tablet Optimizations
+   ============================================ */
+
+/* ============ TABLET STYLES (768px - 1024px) ============ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Header */
+  .header-i-inner {
+    padding: 0 20px;
+  }
+
+  .header-text a,
+  .contact-info a {
+    font-size: 16px;
+  }
+
+  /* Menu */
+  .menu {
+    padding: 10px 20px;
+  }
+
+  .menu-1 ul li a {
+    padding: 15px 10px;
+    font-size: 12px;
+  }
+
+  .logo img {
+    width: 130px;
+  }
+
+  /* Slide Show */
+  #slide-show {
+    height: 400px;
+  }
+
+  .slide-image {
+    object-fit: cover;
+    height: 100%;
+  }
+
+  /* Products Grid */
+  .sanphams {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 0 20px;
+  }
+
+  .sanpham {
+    padding: 15px;
+  }
+
+  .tieude {
+    padding: 0 20px;
+  }
+
+  .tieude h2 {
+    font-size: 2.2em;
+    margin-bottom: 30px;
+  }
+
+  /* SanPhamMoi */
+  .SanPhamMoi {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 20px;
+    justify-content: center;
+  }
+
+  .SanPhamMoi li {
+    flex: 0 0 calc(50% - 15px);
+    min-width: 250px;
+    max-width: 350px;
+    height: 280px;
+  }
+
+  /* Flash Sale */
+  .container {
+    margin: 20px;
+  }
+
+  .sale-options {
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+  }
+
+  .sale-option {
+    width: calc(50% - 10px);
+    min-width: 250px;
+    max-width: 350px;
+  }
+
+  /* Blog */
+  .blog-slider {
+    gap: 20px;
+    justify-content: center;
+  }
+
+  .blog-item {
+    width: calc(50% - 10px);
+    min-width: 280px;
+    max-width: 400px;
+  }
+
+  /* User Actions */
+  .user-actions {
+    gap: 10px;
+  }
+
+  .admin-btn {
+    padding: 8px 15px !important;
+    font-size: 13px !important;
+  }
+
+  .admin-btn span {
+    display: inline;
+  }
+
+  /* Gợi ý sản phẩm */
+  #Laptop_VP {
+    padding: 30px 20px;
+  }
+
+  .row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .SP_VP {
+    width: calc(50% - 15px);
+    max-width: 300px;
+  }
+}
+
+/* ============ MOBILE STYLES (max-width: 768px) ============ */
+@media (max-width: 768px) {
+  /* Header Banner - Ẩn hoàn toàn trên mobile */
+  .header-banner {
+    display: none;
+  }
+
+  /* Header Menu */
+  .menu {
+    padding: 8px 10px;
+    position: relative;
+  }
+
+  .logo img {
+    width: 100px;
+    height: auto;
+  }
+
+  .menu-icons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .menu-icons .icon,
+  .menu-icons .mobile-toggle {
+    font-size: 20px;
+    color: #333;
+    cursor: pointer;
+  }
+
+  /* Mobile Menu */
+  .menu-1 {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    z-index: 999;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .menu-1.active {
+    display: block;
+  }
+
+  .menu-1 > ul {
+    flex-direction: column;
+    width: 100%;
+    padding: 0;
+  }
+
+  .menu-1 ul li {
+    width: 100%;
+    border-bottom: 1px solid #eee;
+  }
+
+  .menu-1 ul li a {
+    padding: 15px 20px;
+    font-size: 16px;
+    display: block;
+  }
+
+  /* Dropdown menu trên mobile */
+  .menu-1 .dropdown-menu {
+    position: static;
+    display: none;
+    width: 100%;
+    box-shadow: none;
+    background: #f8f9fa;
+    padding-left: 0;
+    margin-top: 0;
+  }
+
+  .menu-1 .dropdown.active > .dropdown-menu {
+    display: block;
+  }
+
+  .menu-1 .dropdown > a::after {
+    content: '\f107';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    float: right;
+    transition: transform 0.3s;
+  }
+
+  .menu-1 .dropdown.active > a::after {
+    transform: rotate(180deg);
+  }
+
+  /* User Actions - Hiển thị trong menu mobile */
+  .user-actions {
+    display: none;
+  }
+
+  .menu-1.active .user-actions {
+    display: block;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+  }
+
+  .menu-1.active .user-actions ul {
+    margin: 0;
+    padding: 0;
+  }
+
+  .menu-1.active .user-actions ul li {
+    border-bottom: 1px solid #ddd;
+  }
+
+  .menu-1.active .user-actions ul li:last-child {
+    border-bottom: none;
+  }
+
+  .menu-1.active .user-actions #adminButtonContainer {
+    display: block !important;
+    margin: 10px 0 0 0;
+  }
+
+  .menu-1.active .user-actions .admin-btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    padding: 12px 20px !important;
+    margin: 0;
+  }
+
+  .menu-1.active .user-actions .cart {
+    display: block;
+    padding: 15px 20px;
+    margin: 0;
+    border-top: 1px solid #ddd;
+  }
+
+  .menu-1.active .user-actions .cart a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    color: #333;
+  }
+
+  /* Search - Ẩn trên mobile */
+  .search {
+    display: none !important;
+  }
+
+  /* Slide Show */
+  #slide-show {
+    height: 250px;
+    margin-top: 10px;
+  }
+
+  .slide-container {
+    height: 100%;
+  }
+
+  .slide-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .arrow {
+    width: 35px;
+    height: 35px;
+  }
+
+  .left-arrow {
+    margin-left: 5px;
+  }
+
+  .right-arrow {
+    margin-right: 5px;
+  }
+
+  /* Tiêu đề */
+  .tieude {
+    padding: 0 15px;
+    margin-top: 20px;
+  }
+
+  .tieude h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+  }
+
+  /* SanPhamMoi - Đã có trong SanPhamMoi.css */
+  .SanPhamMoi {
+    flex-direction: column;
+    height: auto;
+    padding: 0 15px;
+    gap: 15px;
+  }
+
+  .SanPhamMoi li {
+    width: 100%;
+    max-width: 400px;
+    height: 250px;
+    flex: none;
+  }
+
+  /* Flash Sale */
+  .container {
+    margin: 20px 15px;
+  }
+
+  .timer {
+    font-size: 24px;
+    margin-bottom: 15px;
+  }
+
+  .sale-options {
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .sale-option {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .sale-option img {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Products Grid */
+  .BanChay {
+    padding: 0 15px;
+    margin-bottom: 30px;
+  }
+
+  .sanphams {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 0;
+  }
+
+  .sanpham {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .image-container img,
+  .image img {
+    width: 100%;
+    height: auto;
+    max-height: 180px;
+    object-fit: cover;
+  }
+
+  .product-name,
+  .namePrice h3 {
+    font-size: 14px;
+    line-height: 1.3;
+    margin: 8px 0 5px;
+  }
+
+  .namePrice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .namePrice span {
+    font-size: 16px;
+  }
+
+  .price {
+    font-size: 14px;
+  }
+
+  .price b {
+    font-size: 16px;
+  }
+
+  .price-old {
+    font-size: 12px;
+  }
+
+  .bottom-row {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .buy button {
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  /* View All Button */
+  .view-all {
+    margin: 20px 15px;
+    font-size: 14px;
+    padding: 12px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    text-align: center;
+    display: block;
+    transition: background 0.2s;
+  }
+
+  .view-all:hover {
+    background: #e0e0e0;
+  }
+
+  /* Gợi ý dành cho bạn */
+  #Laptop_VP {
+    padding: 20px 15px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .SP_VP {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 20px;
+  }
+
+  .bg_sp {
+    padding: 15px;
+  }
+
+  .bg_sp .img-baosp {
+    height: 200px;
+  }
+
+  .bg_sp .img-baosp img {
+    max-height: 180px;
+  }
+
+  .text-sp {
+    margin: 20px 0 15px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .bg_sp .price {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+
+  /* Blog Section */
+  .fashion-blog {
+    padding: 30px 15px;
+  }
+
+  .blog-title {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .blog-subtitle {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .blog-slider {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .blog-item {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .blog-item img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+
+  .blog-caption {
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* Fixed Icons */
+  .fixed-icon {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .fixed-icon .icons.phone img {
+    width: 40px;
+    height: 40px;
+  }
+
+  #back-to-top {
+    width: 35px;
+    height: 35px;
+    margin-top: 8px;
+  }
+
+  #back-to-top svg {
+    width: 12px;
+    height: 20px;
+    padding-top: 7px;
+  }
+
+  /* Footer - Đã có trong style.css */
+}
+
+/* ============ SMALL MOBILE (max-width: 480px) ============ */
+@media (max-width: 480px) {
+  /* Logo nhỏ hơn */
+  .logo img {
+    width: 80px;
+  }
+
+  /* Slide Show */
+  #slide-show {
+    height: 200px;
+  }
+
+  .arrow {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* Tiêu đề */
+  .tieude h2 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+  }
+
+  /* Products Grid - 1 cột trên mobile nhỏ */
+  .sanphams {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sanpham {
+    max-width: 100%;
+  }
+
+  /* Flash Sale Timer */
+  .timer {
+    font-size: 20px;
+  }
+
+  /* Blog */
+  .blog-title {
+    font-size: 20px;
+  }
+
+  .blog-item img {
+    height: 150px;
+  }
+}
+
+/* ============ UTILITY CLASSES ============ */
+@media (max-width: 768px) {
+  /* Ẩn các phần không cần thiết trên mobile */
+  .menu-1 .dropdown-menu .dropdown-submenu {
+    display: none !important;
+  }
+
+  /* Đảm bảo dropdown không bị overflow */
+  .menu-1 {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Touch friendly buttons */
+  button,
+  .btn,
+  .buy button,
+  .view-more button,
+  a.admin-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ============ LANDSCAPE ORIENTATION ============ */
+@media (max-width: 768px) and (orientation: landscape) {
+  #slide-show {
+    height: 300px;
+  }
+
+  .SanPhamMoi {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .SanPhamMoi li {
+    width: calc(50% - 10px);
+    height: 200px;
+  }
+}

@@ -1,0 +1,417 @@
+/* ============================================
+   UI ENHANCEMENTS - Làm mềm giao diện, bớt cứng nhựa
+   Thêm animations, transitions, depth, micro-interactions
+   ============================================ */
+
+/* ---- Scroll Reveal Animation ---- */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes revealScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Sections animate on load */
+.trust-bar,
+.category-section,
+.products-section,
+.lookbook-section,
+.campaign-section,
+.flash-sale-section,
+.brand-values-section,
+.reviews-section,
+.newsletter-social-section {
+  animation: revealUp 0.7s ease-out both;
+}
+
+.trust-bar { animation-delay: 0.05s; }
+.category-section { animation-delay: 0.1s; }
+.products-section { animation-delay: 0.15s; }
+.lookbook-section { animation-delay: 0.1s; }
+.campaign-section { animation-delay: 0.1s; }
+.flash-sale-section { animation-delay: 0.1s; }
+.brand-values-section { animation-delay: 0.1s; }
+.reviews-section { animation-delay: 0.1s; }
+.newsletter-social-section { animation-delay: 0.1s; }
+
+/* ---- Product Card Enhancements ---- */
+/* (moved to product-card-ivy.css) */
+
+/* ---- Category Tiles Depth ---- */
+.category-tile {
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.category-tile:hover {
+  transform: scale(1.03);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.category-overlay {
+  transition: background 0.4s ease, padding-bottom 0.3s ease;
+}
+
+/* ---- Trust Bar Softness ---- */
+.trust-item {
+  transition: transform 0.3s ease, background 0.3s ease;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.trust-item:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* ---- Section Headers ---- */
+.section-header h2 {
+  position: relative;
+  display: inline-block;
+}
+
+.section-header h2::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.section-header:hover h2::after {
+  width: 80px;
+}
+
+/* ---- Filter Tabs Smooth ---- */
+.filter-tabs .tab {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 25px;
+}
+
+.filter-tabs .tab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.filter-tabs .tab.active {
+  box-shadow: 0 4px 16px rgba(26, 26, 26, 0.25);
+}
+
+/* ---- View All Button ---- */
+.btn-view-all {
+  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-view-all::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-view-all:hover::before {
+  left: 100%;
+}
+
+.btn-view-all:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(26, 26, 26, 0.25);
+}
+
+/* ---- Lookbook Softness ---- */
+.lookbook-image {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.lookbook-item:hover .lookbook-image {
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.15);
+}
+
+.btn-buy-set {
+  transition: all 0.3s ease;
+  border-radius: 25px;
+}
+
+.btn-buy-set:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 26, 26, 0.2);
+}
+
+/* ---- Campaign Section ---- */
+.campaign-image {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.4s ease;
+}
+
+.campaign-section:hover .campaign-image {
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.15);
+}
+
+.btn-campaign {
+  transition: all 0.3s ease;
+  border-radius: 25px;
+}
+
+.btn-campaign:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 26, 26, 0.2);
+}
+
+/* ---- Flash Sale Countdown ---- */
+.flash-sale-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.flash-sale-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+  animation: float 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -20px); }
+}
+
+.countdown-timer .time-unit {
+  transition: transform 0.3s ease;
+}
+
+.countdown-timer .time-unit:hover {
+  transform: scale(1.1);
+}
+
+/* ---- Review Cards ---- */
+.review-card {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  border-radius: 16px;
+}
+
+.review-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.reviewer-avatar {
+  transition: transform 0.3s ease;
+}
+
+.review-card:hover .reviewer-avatar {
+  transform: scale(1.08);
+}
+
+/* ---- Brand Values ---- */
+.brand-values li {
+  transition: transform 0.3s ease, padding-left 0.3s ease;
+}
+
+.brand-values li:hover {
+  transform: translateX(5px);
+}
+
+.btn-brand {
+  transition: all 0.3s ease;
+  border-radius: 25px;
+}
+
+.btn-brand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 26, 26, 0.15);
+}
+
+/* ---- Newsletter Form ---- */
+.newsletter-form input {
+  transition: all 0.3s ease;
+  border-radius: 25px 0 0 25px;
+}
+
+.newsletter-form input:focus {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  outline: none;
+}
+
+.newsletter-form button {
+  transition: all 0.3s ease;
+  border-radius: 0 25px 25px 0;
+}
+
+.newsletter-form button:hover {
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(26, 26, 26, 0.2);
+}
+
+/* ---- Social Gallery ---- */
+.social-item {
+  border-radius: 12px;
+  transition: transform 0.4s ease;
+}
+
+.social-item:hover {
+  transform: scale(1.05);
+}
+
+/* ---- Hero Banner Depth ---- */
+.hero-banner {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+}
+
+.hero-dots .dot {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.hero-dots .dot:hover {
+  transform: scale(1.3);
+}
+
+/* ---- Header Softness ---- */
+.main-header {
+  transition: box-shadow 0.3s ease;
+}
+
+/* ---- Footer Enhancements ---- */
+.main-footer {
+  position: relative;
+}
+
+.main-footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
+  background-size: 300% 100%;
+  animation: gradientSlide 4s ease infinite;
+}
+
+@keyframes gradientSlide {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---- Breadcrumb ---- */
+.breadcrumb {
+  transition: background 0.3s ease;
+}
+
+.breadcrumb a {
+  transition: color 0.3s ease, padding-left 0.2s ease;
+}
+
+.breadcrumb a:hover {
+  color: #667eea;
+}
+
+/* ---- Sidebar (product pages) ---- */
+.danhmuc {
+  transition: box-shadow 0.3s ease;
+}
+
+.danhmuc:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.danhsach ul li a {
+  transition: all 0.25s ease;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.danhsach ul li a:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+  color: #667eea;
+  transform: translateX(3px);
+}
+
+/* ---- Pagination ---- */
+.pagination .page {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 10px;
+}
+
+.pagination .page:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Smooth Scrollbar ---- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---- Selection Color ---- */
+::selection {
+  background: rgba(102, 126, 234, 0.2);
+  color: #1a1a1a;
+}
+
+/* ---- Page Banner (NewIn, Sale) ---- */
+.page-banner {
+  position: relative;
+  overflow: hidden;
+}
+
+.page-banner::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ---- Global Link Smoothness ---- */
+a {
+  transition: color 0.25s ease;
+}
+
+/* ---- Subtle body texture ---- */
+body {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.02) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+
+/* ---- Account Dropdown Smooth ---- */
+.account-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+
+.top-bar {
+  overflow: hidden;
+}

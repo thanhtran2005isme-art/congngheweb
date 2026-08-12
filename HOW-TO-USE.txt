@@ -1,0 +1,15 @@
+========================
+   KAITO KID SHOP
+========================
+
+START:
+  START.bat
+  
+  Choose:
+  [1] Localhost
+  [2] Domain
+
+STOP:
+  stop-all.bat
+
+========================

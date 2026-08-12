@@ -1,0 +1,2 @@
+/* Flash sale admin page now uses shared scoped styles from admin-promotions.css.
+   Keep this file to preserve the import path and avoid reintroducing generic selectors. */

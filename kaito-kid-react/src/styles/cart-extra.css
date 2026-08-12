@@ -1,0 +1,124 @@
+﻿/* Cart - các style tĩnh được tách từ inline style trong Cart.tsx.
+   Style động (theo state) vẫn giữ inline trong file TSX. */
+
+.cart-banner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-banner-icon-16 { font-size: 16px; }
+.cart-banner-flex-1 { flex: 1; }
+.cart-banner-note { margin-left: 8px; }
+
+.cart-info-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.cart-info-card.danger {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.cart-row-between {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.cart-row-between .ok { color: #166534; }
+.cart-row-between .pct { color: #16a34a; font-weight: 600; }
+
+.cart-icon-mr-6 { margin-right: 6px; }
+.cart-icon-mr-8 { margin-right: 8px; }
+.cart-icon-mr-4 { margin-right: 4px; color: #ec4899; }
+.cart-icon-mr-4-trash { margin-right: 4px; }
+
+.cart-progress-track {
+  background: #dcfce7;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cart-progress-fill {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.cart-freeship-line {
+  color: #16a34a;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cart-bulk-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.cart-checkbox-16 {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.cart-bulk-sep { color: #94a3b8; }
+.cart-bulk-spacer { flex: 1; }
+
+.cart-item-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cart-item-product-spacer {
+  width: 16px;
+  display: inline-block;
+}
+.cart-item-info-aligned {
+  align-items: flex-start;
+}
+.cart-item-checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cart-item-meta {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 4px 0 0;
+}
+.cart-item-warn {
+  font-size: 12px;
+  color: #ea580c;
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cart-item-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}

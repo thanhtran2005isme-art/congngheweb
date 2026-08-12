@@ -1,0 +1,238 @@
+/* flash sale */
+.container {
+    text-align: center;
+    margin: 20px;
+  }
+  
+  .timer {
+    font-size: 30px;
+    font-weight: bold;
+    color: #000;
+    margin-bottom: 20px;
+  }
+  .sale-options {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  .sale-option {
+    /* background-color: #00bfff; */
+    padding: 20px;
+    color: white;
+    font-size: 18px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  
+  
+  .SanPham-Sale {
+    width: 90%;
+    margin: 0 auto;
+  }
+  
+  
+  /* ============================================================================================== */
+  .product-item {
+    width: 300px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    position: relative;
+  }
+  
+  .image-container {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .image-container img {
+    width: 100%;
+    display: block;
+    transition: 0.3s ease;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: 0.3s ease;
+  }
+  
+  .image-container:hover .overlay {
+    opacity: 1;
+  }
+  
+  .view-more {
+    padding: 10px 20px;
+    background-color: transparent;
+    border: 1px solid white;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .product-name {
+    margin: 10px 0 5px;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .price {
+    color: #000;
+    text-align: center;
+    
+  }
+  .price-old {
+    font-size: 14px;
+    line-height: 13px;
+    text-decoration: line-through;
+    color: #d22525;
+  }
+  
+  /* Blog */
+  .fashion-blog {
+    text-align: center;
+    /* padding: 40px 20px; */
+    background-color: #fff;
+  }
+  
+  .blog-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .blog-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 30px;
+  }
+  
+  .blog-slider {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .blog-item {
+    width: 350px;
+    flex-shrink: 0;
+  }
+  
+  .blog-item img {
+    width: 100%;
+    border-radius: 5px;
+    object-fit: cover;
+    height: auto;
+  }
+  
+  .blog-caption {
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  
+
+ 
+  /* ================ */
+  @media (max-width: 768px) {
+    
+    .sale-options {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+  
+    .sale-option {
+      width: 90%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+  
+    .sale-option img {
+      width: 100% !important;
+      height: auto !important;
+    }
+  
+   
+    .sanphams {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 0 10px;
+    }
+  
+    .sanpham {
+      width: 60%;
+      max-width: 360px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+  
+    .image-container,
+    .image {
+      width: 100%;
+      height: auto;
+    }
+  
+    .image-container img,
+    .image img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+  
+    .product-name,
+    .namePrice h3 {
+      font-size: 16px;
+      margin: 10px 0 5px;
+    }
+  
+    .price,
+    .namePrice span {
+      font-size: 15px;
+      text-align: center;
+    }
+  
+    .bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+  
+    .stars i {
+      font-size: 14px;
+      color: #f8b400;
+    }
+  
+    .buy button {
+      background-color: #ff4d4d;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  
+    .buy button:hover {
+      background-color: #e03939;
+    }
+  }
+  

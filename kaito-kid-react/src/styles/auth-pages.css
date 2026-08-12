@@ -1,0 +1,269 @@
+/* Auth pages (ForgotPassword, ResetPassword, VerifyEmail) shared layout */
+
+.auth-page {
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: #f8fafc;
+}
+
+.auth-page-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 36px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 13px;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.auth-back-link:hover { color: #0f172a; }
+
+.auth-page-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.auth-page-desc {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.auth-page-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.auth-page-input-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.auth-page-input-wrap-tight {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.auth-page-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.auth-page-input {
+  width: 100%;
+  padding: 12px 14px 12px 40px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+.auth-page-input:focus { border-color: #ec4899; }
+
+.auth-page-input.ok-border { border-color: #e5e7eb; }
+.auth-page-input.warn-border { border-color: #fde68a; }
+.auth-page-input.err-border { border-color: #fecaca; }
+
+.auth-page-submit {
+  width: 100%;
+  padding: 14px;
+  background: #ec4899;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.auth-page-submit:hover:not(:disabled) { background: #db2777; }
+.auth-page-submit:disabled {
+  background: #94a3b8;
+  cursor: wait;
+}
+
+.auth-page-success-state {
+  text-align: center;
+  padding: 20px 0;
+}
+.auth-page-success-icon {
+  font-size: 64px;
+  color: #16a34a;
+}
+.auth-page-success-icon-pink { color: #ec4899; }
+.auth-page-success-icon-red { color: #dc2626; }
+
+.auth-page-success-state h2 {
+  margin: 16px 0 8px;
+  color: #0f172a;
+}
+.auth-page-success-state p {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.auth-page-success-back {
+  margin-top: 20px;
+  padding: 10px 24px;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.auth-page-meta {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: #64748b;
+}
+.auth-page-meta a {
+  color: #ec4899;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-page-hint-small {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+/* Password strength bar (3 segments) */
+.auth-page-strength {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.auth-page-strength-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #e5e7eb;
+  transition: opacity 0.2s, background 0.2s;
+}
+.auth-page-strength-bar.weak.on { background: #dc2626; }
+.auth-page-strength-bar.medium.on { background: #f59e0b; }
+.auth-page-strength-bar.strong.on { background: #16a34a; }
+.auth-page-strength-bar.off { opacity: 0.2; }
+
+.auth-page-mismatch {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+
+/* Compare page */
+.compare-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+.compare-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+.compare-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+.compare-table th,
+.compare-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  vertical-align: top;
+  font-size: 14px;
+  color: #0f172a;
+}
+.compare-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+.compare-product-cell {
+  text-align: center;
+  min-width: 200px;
+}
+.compare-product-cell img {
+  width: 100%;
+  max-width: 180px;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.compare-product-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 4px;
+}
+.compare-product-name:hover { color: #ec4899; }
+.compare-product-price {
+  color: #ec4899;
+  font-size: 16px;
+  font-weight: 700;
+}
+.compare-product-old {
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-size: 12px;
+  margin-left: 6px;
+  font-weight: 400;
+}
+.compare-remove-btn {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.compare-remove-btn:hover { background: #fecaca; }
+
+.auth-spinning {
+  animation: auth-spin 1s linear infinite;
+}
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
