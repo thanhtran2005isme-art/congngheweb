@@ -325,7 +325,7 @@ body {
   gap: 12px;
 }
 
-/* Custom Checkbox */
+/* Make checkbox wrapper work with custom checkmark span */
 .checkbox-wrapper {
   display: flex;
   align-items: flex-start;
@@ -333,13 +333,14 @@ body {
   cursor: pointer;
   font-size: 14px;
   color: #4b5563;
+  user-select: none;
 }
 
-.checkbox-wrapper input {
+.checkbox-wrapper input[type="checkbox"] {
   display: none;
 }
 
-.checkmark {
+.checkbox-wrapper .checkmark {
   width: 20px;
   height: 20px;
   min-width: 20px;
@@ -349,14 +350,15 @@ body {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.checkbox-wrapper input:checked + .checkmark {
-  background: #667eea;
-  border-color: #667eea;
+.checkbox-wrapper input[type="checkbox"]:checked + .checkmark {
+  background: #ec4899;
+  border-color: #ec4899;
 }
 
-.checkbox-wrapper input:checked + .checkmark::after {
+.checkbox-wrapper input[type="checkbox"]:checked + .checkmark::after {
   content: '✓';
   color: #fff;
   font-size: 12px;
@@ -364,13 +366,15 @@ body {
 }
 
 .checkbox-wrapper a {
-  color: #667eea;
+  color: #ec4899;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .checkbox-wrapper a:hover {
   text-decoration: underline;
 }
+
 
 .forgot-link {
   color: #667eea;
@@ -663,7 +667,7 @@ body {
 
 /* ====== Refactor additions for Login.tsx (react-icons + toggle eye) ====== */
 
-/* react-icons render an <svg>, so duplicate the icon styles to apply to svg */
+/* react-icons render an <svg>, so apply icon styles to svg */
 .input-wrapper > svg:first-of-type {
   position: absolute;
   left: 16px;
@@ -673,11 +677,37 @@ body {
   font-size: 18px;
   pointer-events: none;
   transition: color 0.3s;
+  z-index: 1;
 }
 
 .input-wrapper:focus-within > svg:first-of-type {
-  color: #667eea;
+  color: #ec4899;
 }
+
+/* Ensure input text doesn't overlap with icon */
+.input-wrapper input {
+  width: 100%;
+  padding: 14px 48px 14px 48px; /* Left padding for icon, right for toggle button */
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  background: #fff;
+  position: relative;
+  z-index: 0;
+}
+
+.input-wrapper input:focus {
+  outline: none;
+  border-color: #ec4899;
+  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.1);
+}
+
+.input-wrapper input::placeholder {
+  color: #9ca3af;
+}
+
 
 /* Eye toggle button (works with both <i> and <svg>) */
 .input-wrapper .toggle-password {
@@ -695,17 +725,16 @@ body {
   font-size: 18px;
   border-radius: 6px;
   transition: color 0.2s, background 0.2s;
+  z-index: 2;
 }
+
 .input-wrapper .toggle-password:hover {
   color: #ec4899;
   background: #fdf2f8;
 }
 
-/* Reserve space on the right for the eye toggle */
-.input-wrapper input[type="password"],
-.input-wrapper input[type="text"] {
-  padding-right: 44px;
-}
+/* No extra padding needed, already set in input style above */
+
 
 /* Allow label to host a "forgot password" link on the right */
 .form-group label .forgot-link {
@@ -737,13 +766,3 @@ body {
 @media (max-width: 520px) {
   .form-row { flex-direction: column; gap: 0; }
 }
-
-/* Make checkbox wrapper play nice with inline checkbox (no custom span) */
-.checkbox-wrapper input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #ec4899;
-  cursor: pointer;
-}
-.checkbox-wrapper { align-items: center; }
-.checkbox-wrapper .checkmark { display: none; }

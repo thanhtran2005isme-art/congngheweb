@@ -317,6 +317,9 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log('[Register] Starting validation...');
+    console.log('[Register] Form data:', { regName, regEmail, regPhone, regPassword, regConfirm, regAgree, otpCode });
+
     if (!regName.trim() || !regEmail || !regPhone || !regPassword || !regConfirm) {
       toast.error('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -346,6 +349,7 @@ export default function Login() {
       return;
     }
 
+    console.log('[Register] Validation passed, calling register API...');
     setLoading(true);
     const recaptchaToken = await getRecaptchaToken('register');
     const r = await register({
@@ -358,6 +362,8 @@ export default function Login() {
     });
     setLoading(false);
 
+    console.log('[Register] API response:', r);
+
     if (r.success) {
       toast.success('Đăng ký thành công. Mời bạn đăng nhập.');
       // Reset register form, chuyển sang tab login
@@ -369,13 +375,11 @@ export default function Login() {
       setOtpCode('');
       setOtpSent(false);
       setOtpCountdown(0);
+      setRegAgree(false);
       setTab('login');
     } else {
       toast.error(r.error || 'Đăng ký thất bại');
     }
-
-    // Backup: nếu register trả về token và auto-login (tùy backend),
-    // có thể navigate('/') ngay. Hiện tại chuyển về tab login cho an toàn.
   };
 
   // ==== Derived ================================================
