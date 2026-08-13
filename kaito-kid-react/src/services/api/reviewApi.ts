@@ -91,8 +91,10 @@ interface MutationResponse {
 }
 
 type UnknownRecord = Record<string, unknown>;
+type ProductReviewFallback = { name: string; sku: string; image: string };
 
 const REVIEW_PRODUCT_FALLBACK_IMAGE = '/images/logokaitokid.png';
+const productReviewFallbackCache = new Map<number, ProductReviewFallback>();
 
 function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' ? value as UnknownRecord : {};
@@ -147,6 +149,22 @@ function normalizeImages(value: unknown): string[] {
   return [value];
 }
 
+function normalizeProductImage(value: unknown): string {
+  const image = asString(value).trim();
+  if (!image) return REVIEW_PRODUCT_FALLBACK_IMAGE;
+
+  // The original SQL seed references /products/*.jpg, but this repository has no
+  // public/products directory. Avoid a broken-image glyph for those legacy rows.
+  if (image.startsWith('/products/')) return REVIEW_PRODUCT_FALLBACK_IMAGE;
+
+  if (image.startsWith('/uploads/')) {
+    const base = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    return base ? `${base}${image}` : image;
+  }
+
+  return image;
+}
+
 function normalizeAdminReview(value: unknown): AdminReviewDTO {
   const raw = asRecord(value);
   const productId = asNumber(raw.productId ?? raw.sanPhamId);
@@ -160,7 +178,7 @@ function normalizeAdminReview(value: unknown): AdminReviewDTO {
     productId,
     productName: asString(raw.productName ?? raw.tenSanPham, productId ? `Sản phẩm #${productId}` : 'Sản phẩm'),
     productSku: asString(raw.productSku ?? raw.maSanPham),
-    productImage: asString(raw.productImage ?? raw.hinhAnh ?? raw.hinhAnhSP, REVIEW_PRODUCT_FALLBACK_IMAGE),
+    productImage: normalizeProductImage(raw.productImage ?? raw.hinhAnh ?? raw.hinhAnhSP),
     userId,
     customerName: asString(raw.customerName ?? raw.tenKhachHang, userId ? `Khách hàng #${userId}` : 'Khách hàng'),
     customerEmail: asString(raw.customerEmail ?? raw.email),
@@ -188,7 +206,7 @@ function normalizeAdminReview(value: unknown): AdminReviewDTO {
 function needsProductEnrichment(review: AdminReviewDTO): boolean {
   if (review.productId <= 0) return false;
   const fallbackName = review.productName === `Sản phẩm #${review.productId}` || review.productName === 'Sản phẩm';
-  return fallbackName || !review.productSku || !review.productImage || review.productImage === REVIEW_PRODUCT_FALLBACK_IMAGE;
+  return fallbackName || !review.productSku || review.productImage === REVIEW_PRODUCT_FALLBACK_IMAGE;
 }
 
 async function enrichLegacyProductData(items: AdminReviewDTO[]): Promise<AdminReviewDTO[]> {
@@ -196,30 +214,32 @@ async function enrichLegacyProductData(items: AdminReviewDTO[]): Promise<AdminRe
     items.filter(needsProductEnrichment).map((item) => item.productId),
   ));
 
+  const idsToFetch = missingIds.filter((id) => !productReviewFallbackCache.has(id));
+  if (idsToFetch.length > 0) {
+    await Promise.all(idsToFetch.map(async (productId) => {
+      const result = await productApi.getById(productId);
+      if (!result.success || !result.data) return;
+
+      productReviewFallbackCache.set(productId, {
+        name: result.data.name || `Sản phẩm #${productId}`,
+        sku: result.data.sku || '',
+        image: normalizeProductImage(result.data.image),
+      });
+    }));
+  }
+
   if (missingIds.length === 0) return items;
 
-  const resolvedEntries = await Promise.all(
-    missingIds.map(async (productId) => {
-      const result = await productApi.getById(productId);
-      return [productId, result.success ? result.data : undefined] as const;
-    }),
-  );
-
-  const productLookup = new Map(resolvedEntries);
-
   return items.map((review) => {
-    const product = productLookup.get(review.productId);
+    const product = productReviewFallbackCache.get(review.productId);
     if (!product) return review;
 
     const currentNameIsFallback = review.productName === `Sản phẩm #${review.productId}` || review.productName === 'Sản phẩm';
     return {
       ...review,
-      productName: currentNameIsFallback ? (product.name || review.productName) : review.productName,
-      productSku: review.productSku || product.sku || '',
-      productImage:
-        review.productImage && review.productImage !== REVIEW_PRODUCT_FALLBACK_IMAGE
-          ? review.productImage
-          : product.image || REVIEW_PRODUCT_FALLBACK_IMAGE,
+      productName: currentNameIsFallback ? product.name : review.productName,
+      productSku: review.productSku || product.sku,
+      productImage: review.productImage === REVIEW_PRODUCT_FALLBACK_IMAGE ? product.image : review.productImage,
     };
   });
 }
