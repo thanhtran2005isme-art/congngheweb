@@ -224,7 +224,7 @@ function normalizeReviewListResponse(value: unknown, params?: AdminReviewQuery):
     items,
     total,
     page: Math.max(1, asNumber(raw.page, params?.page ?? 1)),
-    pageSize: Math.max(1, asNumber(raw.pageSize, params?.pageSize ?? items.length || 1)),
+    pageSize: Math.max(1, asNumber(raw.pageSize, params?.pageSize ?? (items.length || 1))),
     stats: normalizeStats(raw.stats, items, total),
   };
 }
