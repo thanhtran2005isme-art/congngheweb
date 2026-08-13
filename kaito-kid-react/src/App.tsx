@@ -17,7 +17,7 @@ import { I18nProvider } from './i18n/I18nContext';
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute';
 
 // Customer Pages
-import Home from './pages/Home';
+import Home from './pages/HomeManaged';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
