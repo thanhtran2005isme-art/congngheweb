@@ -5,7 +5,7 @@ import '../styles/account-notifications.css';
 
 export default function OffersView() {
   const { user } = useAuth();
-  const { items, coupons, loading, error, load, markAll } = useOfferFeed(String(user?.id || user?.email || 'guest'));
+  const { items, coupons, loading, error, load, markRead, markAll } = useOfferFeed(String(user?.id || user?.email || 'guest'));
   const unread = items.filter((item) => !item.isRead).length;
 
   return (
@@ -21,11 +21,16 @@ export default function OffersView() {
         <section className="notification-feed-card">
           {loading ? <div className="notification-center-empty">Đang tải thông báo...</div> : items.length === 0 ? <div className="notification-center-empty"><div className="notification-empty-icon">✓</div><h3>Chưa có thông báo</h3></div> : <div className="notification-feed-list">{items.map((item) => (
             <article key={`${item.type}-${item.id}`} className={`notification-feed-item ${item.isRead ? '' : 'unread'} ${item.coupon ? 'coupon' : ''}`}>
-              <div className="notification-item-icon">{item.coupon ? '%' : '•'}</div>
+              <div className="notification-item-icon">{item.coupon ? '%' : item.type === 'order' ? '▣' : '•'}</div>
               <div className="notification-item-copy">
-                <div className="notification-item-meta"><span>{item.coupon ? item.coupon.isPersonal ? 'Ưu đãi riêng' : 'Khuyến mãi' : 'Thông báo'}</span></div>
+                <div className="notification-item-meta"><span>{item.coupon ? item.coupon.isPersonal ? 'Ưu đãi riêng' : 'Khuyến mãi' : item.type === 'order' ? 'Đơn hàng' : 'Thông báo'}</span></div>
                 <h3>{item.title}</h3><p>{item.body}</p>
                 {item.coupon && <div className="notification-coupon-code"><code>{item.coupon.code}</code><span>{item.coupon.isPersonal ? 'Chỉ tài khoản của bạn' : 'Áp dụng công khai'}</span></div>}
+              </div>
+              <div className="notification-item-actions">
+                {item.coupon && item.link ? <Link className="use-code" to={item.link} onClick={() => { sessionStorage.setItem('kk_pending_coupon', item.coupon!.code); void markRead(item); }}>Dùng mã</Link>
+                  : item.link ? <Link to={item.link} onClick={() => void markRead(item)}>Xem chi tiết</Link>
+                  : !item.isRead ? <button type="button" onClick={() => void markRead(item)}>Đã đọc</button> : null}
               </div>
             </article>
           ))}</div>}
