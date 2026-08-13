@@ -165,6 +165,8 @@ function App() {
                   <Route path="roles" element={<AdminRoles />} />
                 </Route>
                 <Route path="settings" element={<AdminSettings />} />
+                {/* Tránh vùng content trắng khi URL admin bị gõ sai hoặc bookmark đã cũ. */}
+                <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
             </Route>
           </Routes>
