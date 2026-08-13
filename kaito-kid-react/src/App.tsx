@@ -47,6 +47,7 @@ import Dashboard from './admin/Dashboard';
 import AdminProducts from './admin/AdminProducts';
 import AdminProductAdd from './admin/AdminProductAdd';
 import AdminOrders from './admin/AdminOrders';
+import AdminReturns from './admin/AdminReturns';
 import AdminCustomers from './admin/AdminCustomers';
 import AdminCategories from './admin/AdminCategories';
 import AdminCollections from './admin/AdminCollections';
@@ -133,6 +134,7 @@ function App() {
                 <Route path="products/add" element={<AdminProductAdd />} />
                 <Route path="products/edit/:id" element={<AdminProductAdd />} />
                 <Route path="orders" element={<AdminOrders />} />
+                <Route path="returns" element={<AdminReturns />} />
                 <Route path="customers" element={<AdminCustomers />} />
                 <Route path="chat" element={<AdminChat />} />
                 <Route path="categories" element={<AdminCategories />} />
