@@ -45,6 +45,12 @@ public class DanhGia
     public string NoiDung { get; set; } = string.Empty;
     public string TrangThai { get; set; } = "pending";
     public string? PhanHoiAdmin { get; set; }
+    public DateTime? NgayPhanHoi { get; set; }
+    public string? DanhSachAnh { get; set; }
+    public string? Video { get; set; }
+    public string? KichCo { get; set; }
+    public string? MauSac { get; set; }
+    public int LuotHuuIch { get; set; }
     public DateTime NgayTao { get; set; } = DateTime.UtcNow;
 }
 
@@ -284,3 +290,4 @@ public class TonKhoBienThe
     public DateTime? NgayCapNhat { get; set; }
 }
 // v1.4: Them NhaCungCap, PhieuNhap, ChiTietPhieuNhap, TonKhoBienThe
+// v1.5: Map media, helpful counter va thoi gian phan hoi cho moderation danh gia
