@@ -24,10 +24,10 @@ public class CouponsController(ICouponService couponService, CustomerDbContext d
             .OrderBy(c => c.EndDate)
             .ToListAsync();
 
-        var result = coupons
+        return Ok(coupons
             .Where(c => EffectiveEnd(c.EndDate) >= now)
             .Where(c => c.UsageLimit <= 0 || c.UsedCount < c.UsageLimit)
-            .Where(c => PersonalOwner(c.Code) is not int owner || owner == UserId)
+            .Where(c => CouponOwnership.OwnerId(c.Code) is not int owner || owner == UserId)
             .Select(c => new
             {
                 id = c.Id,
@@ -40,16 +40,14 @@ public class CouponsController(ICouponService couponService, CustomerDbContext d
                 usedCount = c.UsedCount,
                 startDate = c.StartDate,
                 endDate = EffectiveEnd(c.EndDate),
-                isPersonal = PersonalOwner(c.Code).HasValue,
-            });
-
-        return Ok(result);
+                isPersonal = CouponOwnership.OwnerId(c.Code).HasValue,
+            }));
     }
 
     [HttpPost("validate")]
     public async Task<ActionResult<CouponResultDTO>> Validate([FromBody] CouponValidateDTO dto)
     {
-        var owner = PersonalOwner(dto.Code);
+        var owner = CouponOwnership.OwnerId(dto.Code);
         if (owner.HasValue && owner.Value != UserId)
         {
             return Ok(new CouponResultDTO
@@ -60,21 +58,9 @@ public class CouponsController(ICouponService couponService, CustomerDbContext d
             });
         }
 
-        var result = await couponService.ValidateAsync(dto);
-        return Ok(result);
+        return Ok(await couponService.ValidateAsync(dto));
     }
 
     private static DateTime EffectiveEnd(DateTime value) =>
         value.TimeOfDay == TimeSpan.Zero ? value.Date.AddDays(1).AddTicks(-1) : value;
-
-    private static int? PersonalOwner(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code)) return null;
-        var normalized = code.Trim().ToUpperInvariant();
-        if (!normalized.StartsWith("PT", StringComparison.Ordinal) && !normalized.StartsWith("BD", StringComparison.Ordinal))
-            return null;
-        var separator = normalized.IndexOf('-', 2);
-        if (separator <= 2) return null;
-        return int.TryParse(normalized[2..separator], out var id) && id > 0 ? id : null;
-    }
 }
