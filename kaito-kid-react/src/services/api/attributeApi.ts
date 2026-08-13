@@ -9,6 +9,12 @@ export interface AttributeDTO {
   ngayTao: string;
 }
 
+export interface AttributeGroupPayload {
+  name: string;
+  group?: string;
+  values: string[];
+}
+
 export interface CreateAttributeDTO {
   tenThuocTinh: string;
   giaTri: string;
@@ -24,44 +30,50 @@ export interface UpdateAttributeDTO {
 }
 
 export const attributeApi = {
-  /**
-   * Lấy tất cả thuộc tính (Admin)
-   * @param group - Lọc theo nhóm thuộc tính (size, color, material...)
-   */
   async getAll(group?: string): Promise<AttributeDTO[]> {
     const params = group ? { group } : {};
     const response = await apiClient.get<AttributeDTO[]>('/api/admin/attributes', { params });
     return response.data;
   },
 
-  /**
-   * Lấy thuộc tính public (không cần auth) - dùng cho bộ lọc trang sản phẩm customer
-   */
   async getPublic(group?: string): Promise<AttributeDTO[]> {
     const params = group ? { group } : {};
     const response = await apiClient.get<AttributeDTO[]>('/api/attributes', { params });
     return response.data;
   },
 
-  /**
-   * Tạo thuộc tính mới (Admin)
-   */
+  async seedDefaults(): Promise<{ inserted: number; message: string }> {
+    const response = await apiClient.post<{ inserted: number; message: string }>('/api/admin/attributes/seed-defaults');
+    return response.data;
+  },
+
+  async createGroup(data: AttributeGroupPayload): Promise<AttributeDTO[]> {
+    const response = await apiClient.post<AttributeDTO[]>('/api/admin/attributes/group', data);
+    return response.data;
+  },
+
+  async replaceGroup(originalName: string, data: AttributeGroupPayload): Promise<AttributeDTO[]> {
+    const response = await apiClient.put<AttributeDTO[]>('/api/admin/attributes/group', data, {
+      params: { originalName },
+    });
+    return response.data;
+  },
+
+  async deleteGroup(name: string): Promise<void> {
+    await apiClient.delete('/api/admin/attributes/group', { params: { name } });
+  },
+
+  // Row-level endpoints giữ lại để tương thích code cũ.
   async create(data: CreateAttributeDTO): Promise<AttributeDTO> {
     const response = await apiClient.post<AttributeDTO>('/api/admin/attributes', data);
     return response.data;
   },
 
-  /**
-   * Cập nhật thuộc tính (Admin)
-   */
   async update(id: number, data: UpdateAttributeDTO): Promise<AttributeDTO> {
     const response = await apiClient.put<AttributeDTO>(`/api/admin/attributes/${id}`, data);
     return response.data;
   },
 
-  /**
-   * Xóa thuộc tính (Admin)
-   */
   async delete(id: number): Promise<void> {
     await apiClient.delete(`/api/admin/attributes/${id}`);
   },
