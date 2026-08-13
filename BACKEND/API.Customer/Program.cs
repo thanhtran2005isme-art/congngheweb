@@ -2,6 +2,7 @@ using API.Customer.Data;
 using API.Customer.Services;
 using API.Customer.Services.Shipping;
 using DbHelper;
+using Microsoft.EntityFrameworkCore;
 using Shared.Authorization;
 using Shared.Extensions;
 
@@ -128,6 +129,32 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Compatibility repair: các database cũ chưa có bảng yêu cầu đổi/trả.
+// Tạo idempotent khi API.Customer khởi động để người dùng không phải chạy SQL thủ công.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CustomerDbContext>();
+    await db.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'dbo.YeuCauDoiTra', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.YeuCauDoiTra (
+                Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_YeuCauDoiTra PRIMARY KEY,
+                DonHangId INT NOT NULL,
+                NguoiDungId INT NOT NULL,
+                LyDo NVARCHAR(200) NOT NULL,
+                GhiChu NVARCHAR(1000) NULL,
+                TrangThai VARCHAR(30) NOT NULL CONSTRAINT DF_YeuCauDoiTra_TrangThai DEFAULT 'pending',
+                PhanHoiAdmin NVARCHAR(1000) NULL,
+                NgayTao DATETIME2 NOT NULL CONSTRAINT DF_YeuCauDoiTra_NgayTao DEFAULT SYSUTCDATETIME(),
+                NgayCapNhat DATETIME2 NULL,
+                CONSTRAINT FK_YeuCauDoiTra_DonHang FOREIGN KEY (DonHangId) REFERENCES dbo.DonHang(Id) ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX UX_YeuCauDoiTra_DonHangId ON dbo.YeuCauDoiTra(DonHangId);
+            CREATE INDEX IX_YeuCauDoiTra_User_Status ON dbo.YeuCauDoiTra(NguoiDungId, TrangThai);
+        END
+        """);
+}
 
 if (app.Environment.IsDevelopment())
 {
