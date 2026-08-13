@@ -1,5 +1,6 @@
 import apiClient, { getErrorMessage } from '../apiClient';
 import type { ApiResponse } from '../../types/api';
+import { productApi } from './productApi';
 
 /** Legacy/public shape kept for compatibility with existing customer components. */
 export interface ReviewDTO {
@@ -91,6 +92,8 @@ interface MutationResponse {
 
 type UnknownRecord = Record<string, unknown>;
 
+const REVIEW_PRODUCT_FALLBACK_IMAGE = '/images/logokaitokid.png';
+
 function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' ? value as UnknownRecord : {};
 }
@@ -157,7 +160,7 @@ function normalizeAdminReview(value: unknown): AdminReviewDTO {
     productId,
     productName: asString(raw.productName ?? raw.tenSanPham, productId ? `Sản phẩm #${productId}` : 'Sản phẩm'),
     productSku: asString(raw.productSku ?? raw.maSanPham),
-    productImage: asString(raw.productImage ?? raw.hinhAnh ?? raw.hinhAnhSP),
+    productImage: asString(raw.productImage ?? raw.hinhAnh ?? raw.hinhAnhSP, REVIEW_PRODUCT_FALLBACK_IMAGE),
     userId,
     customerName: asString(raw.customerName ?? raw.tenKhachHang, userId ? `Khách hàng #${userId}` : 'Khách hàng'),
     customerEmail: asString(raw.customerEmail ?? raw.email),
@@ -180,6 +183,45 @@ function normalizeAdminReview(value: unknown): AdminReviewDTO {
     helpfulCount: Math.max(0, asNumber(raw.helpfulCount ?? raw.luotHuuIch)),
     createdAt: asString(raw.createdAt ?? raw.ngayTao, new Date(0).toISOString()),
   };
+}
+
+function needsProductEnrichment(review: AdminReviewDTO): boolean {
+  if (review.productId <= 0) return false;
+  const fallbackName = review.productName === `Sản phẩm #${review.productId}` || review.productName === 'Sản phẩm';
+  return fallbackName || !review.productSku || !review.productImage || review.productImage === REVIEW_PRODUCT_FALLBACK_IMAGE;
+}
+
+async function enrichLegacyProductData(items: AdminReviewDTO[]): Promise<AdminReviewDTO[]> {
+  const missingIds = Array.from(new Set(
+    items.filter(needsProductEnrichment).map((item) => item.productId),
+  ));
+
+  if (missingIds.length === 0) return items;
+
+  const resolvedEntries = await Promise.all(
+    missingIds.map(async (productId) => {
+      const result = await productApi.getById(productId);
+      return [productId, result.success ? result.data : undefined] as const;
+    }),
+  );
+
+  const productLookup = new Map(resolvedEntries);
+
+  return items.map((review) => {
+    const product = productLookup.get(review.productId);
+    if (!product) return review;
+
+    const currentNameIsFallback = review.productName === `Sản phẩm #${review.productId}` || review.productName === 'Sản phẩm';
+    return {
+      ...review,
+      productName: currentNameIsFallback ? (product.name || review.productName) : review.productName,
+      productSku: review.productSku || product.sku || '',
+      productImage:
+        review.productImage && review.productImage !== REVIEW_PRODUCT_FALLBACK_IMAGE
+          ? review.productImage
+          : product.image || REVIEW_PRODUCT_FALLBACK_IMAGE,
+    };
+  });
 }
 
 function buildFallbackStats(items: AdminReviewDTO[], total: number): AdminReviewStats {
@@ -244,7 +286,16 @@ export const reviewApi = {
   async getAll(params?: AdminReviewQuery): Promise<ApiResponse<ReviewListResponse>> {
     try {
       const response = await apiClient.get<unknown>('/api/admin/reviews', { params });
-      return { success: true, data: normalizeReviewListResponse(response.data, params) };
+      const normalized = normalizeReviewListResponse(response.data, params);
+      const enrichedItems = await enrichLegacyProductData(normalized.items);
+      return {
+        success: true,
+        data: {
+          ...normalized,
+          items: enrichedItems,
+          stats: normalizeStats(asRecord(response.data).stats, enrichedItems, normalized.total),
+        },
+      };
     } catch (error) {
       return { success: false, error: getErrorMessage(error) };
     }
