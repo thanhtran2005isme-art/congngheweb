@@ -1,9 +1,9 @@
 ﻿// Layout chính cho trang khách hàng
 
-import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import RecentlyViewedStrip from './RecentlyViewedStrip';
+import CustomerOutlet from './CustomerOutlet';
 import { ChatProvider } from '../../context/ChatContext';
 import ChatWidget from '../chat/ChatWidget';
 
@@ -12,7 +12,7 @@ export default function MainLayout() {
     <ChatProvider>
       <Header />
       <main>
-        <Outlet />
+        <CustomerOutlet />
       </main>
       <RecentlyViewedStrip />
       <Footer />
