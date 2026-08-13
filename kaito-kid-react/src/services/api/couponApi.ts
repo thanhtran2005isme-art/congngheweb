@@ -4,7 +4,7 @@ import type { ApiResponse } from '../../types/api';
 export interface CouponDTO {
   id: number;
   maCoupon: string;
-  loaiGiamGia: string; // 'percent' | 'fixed'
+  loaiGiamGia: string;
   giaTri: number;
   donToiThieu?: number;
   giamToiDa?: number;
@@ -30,18 +30,7 @@ export interface CreateCouponDTO {
   moTa?: string;
 }
 
-export interface UpdateCouponDTO {
-  maCoupon: string;
-  loaiGiamGia: string;
-  giaTri: number;
-  donToiThieu?: number;
-  giamToiDa?: number;
-  soLuotDung: number;
-  ngayBatDau: string;
-  ngayKetThuc: string;
-  trangThai: boolean;
-  moTa?: string;
-}
+export interface UpdateCouponDTO extends CreateCouponDTO {}
 
 export interface CouponValidateRequest {
   code: string;
@@ -55,8 +44,21 @@ export interface CouponValidateResult {
   discountType?: string;
 }
 
+export interface AvailableCouponDTO {
+  id: number;
+  code: string;
+  type: 'percent' | 'fixed' | string;
+  value: number;
+  minOrderAmount?: number;
+  maxDiscount?: number;
+  usageLimit: number;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  isPersonal: boolean;
+}
+
 export const couponApi = {
-  /** Lấy tất cả coupon (Admin) */
   async getAll(): Promise<ApiResponse<CouponDTO[]>> {
     try {
       const response = await apiClient.get<CouponDTO[]>('/api/admin/coupons');
@@ -66,7 +68,6 @@ export const couponApi = {
     }
   },
 
-  /** Tạo coupon mới (Admin) */
   async create(data: CreateCouponDTO): Promise<ApiResponse<CouponDTO>> {
     try {
       const response = await apiClient.post<CouponDTO>('/api/admin/coupons', data);
@@ -76,7 +77,6 @@ export const couponApi = {
     }
   },
 
-  /** Cập nhật coupon (Admin) */
   async update(id: number, data: UpdateCouponDTO): Promise<ApiResponse<CouponDTO>> {
     try {
       const response = await apiClient.put<CouponDTO>(`/api/admin/coupons/${id}`, data);
@@ -86,7 +86,6 @@ export const couponApi = {
     }
   },
 
-  /** Xóa coupon (Admin) */
   async delete(id: number): Promise<ApiResponse<void>> {
     try {
       await apiClient.delete(`/api/admin/coupons/${id}`);
@@ -96,7 +95,15 @@ export const couponApi = {
     }
   },
 
-  /** Validate coupon (Customer checkout) */
+  async available(): Promise<ApiResponse<AvailableCouponDTO[]>> {
+    try {
+      const response = await apiClient.get<AvailableCouponDTO[]>('/api/coupons/available');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+  },
+
   async validate(data: CouponValidateRequest): Promise<ApiResponse<CouponValidateResult>> {
     try {
       const response = await apiClient.post<CouponValidateResult>('/api/coupons/validate', data);
