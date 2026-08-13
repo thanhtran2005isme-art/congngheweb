@@ -10,6 +10,7 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
     public DbSet<DonHang> DonHang => Set<DonHang>();
     public DbSet<ChiTietDonHang> ChiTietDonHang => Set<ChiTietDonHang>();
     public DbSet<NguoiDung> NguoiDung => Set<NguoiDung>();
+    public DbSet<YeuCauDoiTra> YeuCauDoiTra => Set<YeuCauDoiTra>();
     public DbSet<BoSuuTap> BoSuuTap => Set<BoSuuTap>();
     public DbSet<MaGiamGia> MaGiamGia => Set<MaGiamGia>();
     public DbSet<DanhGia> DanhGia => Set<DanhGia>();
@@ -35,6 +36,7 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
     {
         m.Entity<DonHang>().HasMany(d => d.ChiTiet).WithOne().HasForeignKey(c => c.DonHangId);
         m.Entity<DonHang>().HasOne(d => d.NguoiDung).WithMany().HasForeignKey(d => d.NguoiDungId);
+        m.Entity<YeuCauDoiTra>().HasOne(r => r.DonHang).WithMany().HasForeignKey(r => r.DonHangId);
         m.Entity<FlashSale>().HasMany(f => f.ChiTiet).WithOne().HasForeignKey(c => c.FlashSaleId);
         m.Entity<CauHinhCuaHang>().HasIndex(c => c.MaCauHinh).IsUnique();
     }
