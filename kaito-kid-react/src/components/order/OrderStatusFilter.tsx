@@ -10,7 +10,7 @@ interface Props {
 
 const TABS: Array<{ value: OrderStatusFilterValue; label: string }> = [
   { value: 'all', label: 'Tất cả' },
-  { value: 'pending', label: 'Chờ xác nhận' },
+  { value: 'pending', label: 'Đang xử lý' },
   { value: 'shipping', label: 'Đang giao' },
   { value: 'completed', label: 'Hoàn thành' },
   { value: 'cancelled', label: 'Đã hủy' },
@@ -18,10 +18,11 @@ const TABS: Array<{ value: OrderStatusFilterValue; label: string }> = [
 
 export default function OrderStatusFilter({ value, onChange, counts }: Props) {
   return (
-    <div className="order-status-tabs" role="tablist">
+    <div className="order-status-tabs" role="tablist" aria-label="Lọc đơn hàng theo trạng thái">
       {TABS.map((t) => (
         <button
           key={t.value}
+          type="button"
           role="tab"
           aria-selected={value === t.value}
           className={value === t.value ? 'active' : ''}
