@@ -1,8 +1,7 @@
-// Admin Layout - match admin-layout.css glassmorphism design
+// Admin Layout - shared shell for all admin pages
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { useStaffAuth } from '../../context/StaffAuthContext';
 import { useAdminUi } from './AdminUiProvider';
 import type { Order, Product } from '../../types';
@@ -13,7 +12,6 @@ import { readAdminSettings } from '../../utils/adminSettingsConfig';
 import { readAdminProfile } from '../../utils/adminProfileConfig';
 import { readStoredReviews, type ReviewRecord } from '../../utils/reviewConfig';
 import AdminIcon from './AdminIcon';
-
 
 interface MenuItem {
   path?: string;
@@ -112,14 +110,46 @@ const menuItems: MenuItem[] = [
   { path: '/admin/settings', icon: 'fa-cog', label: 'Cài đặt' },
 ];
 
+function readLocalCustomers(): RawCustomer[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('users') || '[]') as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((value) => {
+        const raw = value as Record<string, unknown>;
+        const id = Number(raw.id);
+        const name = String(raw.name ?? raw.hoTen ?? raw.fullName ?? '').trim();
+        const email = String(raw.email ?? '').trim();
+        const phone = String(raw.phone ?? raw.soDienThoai ?? '').trim();
+        const createdAt = String(raw.createdAt ?? raw.ngayTao ?? '').trim();
+
+        return {
+          id: Number.isFinite(id) && id > 0 ? id : undefined,
+          name: name || (Number.isFinite(id) && id > 0 ? `Khách hàng #${id}` : 'Khách hàng'),
+          email,
+          phone: phone || undefined,
+          createdAt: createdAt || undefined,
+        } satisfies RawCustomer;
+      })
+      .filter((customer) => customer.name || customer.email || customer.phone);
+  } catch {
+    return [];
+  }
+}
+
+function safeText(value: unknown) {
+  return String(value ?? '').toLocaleLowerCase('vi-VN');
+}
+
 export default function AdminLayout() {
-  const { user, logout } = useAuth();
-  const { hasPermission } = useStaffAuth();
+  const { staff, hasPermission, logout: staffLogout } = useStaffAuth();
   const { confirm } = useAdminUi();
   const adminProfile = readAdminProfile();
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('admin-sidebar-collapsed') === '1');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -129,16 +159,21 @@ export default function AdminLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+
   const searchRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
-  const adminName = user?.name || adminProfile.basic.displayName || adminProfile.basic.fullName || 'Admin';
-  const adminRole = adminProfile.work.position || 'Owner';
-  const adminAvatar = user?.avatar || adminProfile.basic.avatar;
-  const adminInitial = adminName.charAt(0).toUpperCase();
+  const accountRef = useRef<HTMLDivElement | null>(null);
+
+  // Admin shell phải dùng danh tính StaffAuth, không dùng session khách hàng.
+  const adminName = staff?.hoTen || adminProfile.basic.displayName || adminProfile.basic.fullName || 'Admin';
+  const adminRole = staff?.tenVaiTro || adminProfile.work.position || 'Administrator';
+  const adminEmail = staff?.email || '';
+  const adminAvatar = staff?.anhDaiDien || adminProfile.basic.avatar;
+  const adminInitial = (adminName.trim().charAt(0) || 'A').toUpperCase();
 
   const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
 
-  // Menu hiển thị: chèn nhóm "Nhân sự" theo quyền (staff.view / roles.manage)
   const visibleMenu = useMemo<MenuItem[]>(() => {
     const hrSubmenu: { path: string; label: string }[] = [];
     if (hasPermission('staff.view')) hrSubmenu.push({ path: '/admin/staff', label: 'Quản lý nhân viên' });
@@ -148,7 +183,7 @@ export default function AdminLayout() {
 
     const hrMenu: MenuItem = { icon: 'fa-user-shield', label: 'Nhân sự', submenu: hrSubmenu };
     const items = [...menuItems];
-    const settingsIdx = items.findIndex((i) => i.path === '/admin/settings');
+    const settingsIdx = items.findIndex((item) => item.path === '/admin/settings');
     items.splice(settingsIdx === -1 ? items.length : settingsIdx, 0, hrMenu);
     return items;
   }, [hasPermission]);
@@ -156,43 +191,53 @@ export default function AdminLayout() {
   const loadAdminSignals = () => {
     setOrders(orderService.getAll());
     setProducts(productService.getAll());
-    setCustomers(JSON.parse(localStorage.getItem('users') || '[]'));
+    setCustomers(readLocalCustomers());
     setReviews(readStoredReviews());
   };
+
+  useEffect(() => {
+    localStorage.setItem('admin-sidebar-collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
     setSearchOpen(false);
     setNotificationsOpen(false);
+    setAccountMenuOpen(false);
     loadAdminSignals();
-  }, [location.pathname, location.search]);
+
+    const activeParent = visibleMenu.find((item) =>
+      item.submenu?.some((sub) => location.pathname === sub.path.split('?')[0]),
+    );
+    setOpenSubmenu(activeParent?.label || null);
+  }, [location.pathname, location.search, visibleMenu]);
 
   useEffect(() => {
     loadAdminSignals();
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      if (searchRef.current && !searchRef.current.contains(target)) setSearchOpen(false);
+      if (notificationRef.current && !notificationRef.current.contains(target)) setNotificationsOpen(false);
+      if (accountRef.current && !accountRef.current.contains(target)) setAccountMenuOpen(false);
+    };
 
-      if (searchRef.current && !searchRef.current.contains(target)) {
-        setSearchOpen(false);
-      }
-
-      if (notificationRef.current && !notificationRef.current.contains(target)) {
-        setNotificationsOpen(false);
-      }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setSearchOpen(false);
+      setNotificationsOpen(false);
+      setAccountMenuOpen(false);
+      if (isMobileViewport()) setMobileMenuOpen(false);
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadAdminSignals();
-      }
+      if (document.visibilityState === 'visible') loadAdminSignals();
     };
 
-    const refreshSignals = () => {
-      loadAdminSignals();
-    };
+    const refreshSignals = () => loadAdminSignals();
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', refreshSignals);
     window.addEventListener('storage', refreshSignals);
@@ -202,6 +247,7 @@ export default function AdminLayout() {
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', refreshSignals);
       window.removeEventListener('storage', refreshSignals);
@@ -213,61 +259,52 @@ export default function AdminLayout() {
   const handleLogout = async () => {
     const accepted = await confirm({
       title: 'Đăng xuất khỏi admin',
-      message: 'Bạn sẽ kết thúc phiên làm việc hiện tại và quay về trang đăng nhập.',
+      message: 'Bạn sẽ kết thúc phiên làm việc hiện tại và quay về trang đăng nhập nhân viên.',
       confirmLabel: 'Đăng xuất',
       tone: 'warning',
       icon: 'fa-right-from-bracket',
     });
 
-    if (!accepted) {
-      return;
-    }
+    if (!accepted) return;
 
     setMobileMenuOpen(false);
-    logout();
-    navigate('/login');
+    setAccountMenuOpen(false);
+    staffLogout();
+    navigate('/admin/login', { replace: true });
   };
 
   const toggleSidebar = () => {
     if (isMobileViewport()) {
-      setMobileMenuOpen(current => !current);
+      setMobileMenuOpen((current) => !current);
       return;
     }
-
-    setCollapsed(current => !current);
+    setCollapsed((current) => !current);
   };
 
   const closeMobileMenu = () => {
-    if (isMobileViewport()) {
-      setMobileMenuOpen(false);
-    }
+    if (isMobileViewport()) setMobileMenuOpen(false);
   };
 
   const toggleSubmenu = (label: string) => {
-    setOpenSubmenu(openSubmenu === label ? null : label);
+    setOpenSubmenu((current) => current === label ? null : label);
   };
 
   const isActive = (item: MenuItem) => {
-    if (item.path) {
-      return location.pathname === item.path;
-    }
-    if (item.submenu) {
-      return item.submenu.some(sub => location.pathname === sub.path.split('?')[0]);
-    }
-    return false;
+    if (item.path) return location.pathname === item.path;
+    return item.submenu?.some((sub) => location.pathname === sub.path.split('?')[0]) ?? false;
   };
 
   const searchResults = useMemo(() => {
-    const keyword = searchQuery.trim().toLowerCase();
+    const keyword = searchQuery.trim().toLocaleLowerCase('vi-VN');
     const orderStatusLabels: Record<Order['status'], string> = {
-      pending: 'Cho xử lý',
+      pending: 'Chờ xử lý',
       confirmed: 'Đã xác nhận',
       shipping: 'Đang giao',
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
     };
 
-    const routeResults: SearchResult[] = menuItems
+    const routeResults: SearchResult[] = visibleMenu
       .flatMap((item) => {
         if (item.path) {
           return [{
@@ -298,24 +335,23 @@ export default function AdminLayout() {
             || item.path === '/admin/homepage'
             || item.path === '/admin/reports';
         }
-
-        return `${item.title} ${item.subtitle}`.toLowerCase().includes(keyword);
+        return `${item.title} ${item.subtitle}`.toLocaleLowerCase('vi-VN').includes(keyword);
       })
       .slice(0, keyword ? 4 : 6);
 
     const orderResults: SearchResult[] = keyword
       ? orders
         .filter((order) =>
-          order.id.toLowerCase().includes(keyword)
-          || order.customer.name.toLowerCase().includes(keyword)
-          || order.customer.email.toLowerCase().includes(keyword)
-          || order.customer.phone.toLowerCase().includes(keyword),
+          safeText(order.id).includes(keyword)
+          || safeText(order.customer?.name).includes(keyword)
+          || safeText(order.customer?.email).includes(keyword)
+          || safeText(order.customer?.phone).includes(keyword),
         )
         .slice(0, 3)
         .map((order) => ({
           id: `order-${order.id}`,
           title: order.id,
-          subtitle: `${order.customer.name} · ${orderStatusLabels[order.status]}`,
+          subtitle: `${order.customer?.name || 'Khách hàng'} · ${orderStatusLabels[order.status]}`,
           path: `/admin/orders?search=${encodeURIComponent(order.id)}`,
           icon: 'fa-shopping-cart',
           typeLabel: 'Đơn hàng',
@@ -325,16 +361,16 @@ export default function AdminLayout() {
     const productResults: SearchResult[] = keyword
       ? products
         .filter((product) =>
-          product.name.toLowerCase().includes(keyword)
-          || (product.sku || '').toLowerCase().includes(keyword)
-          || (product.description || '').toLowerCase().includes(keyword),
+          safeText(product.name).includes(keyword)
+          || safeText(product.sku).includes(keyword)
+          || safeText(product.description).includes(keyword),
         )
         .slice(0, 3)
         .map((product) => ({
           id: `product-${product.id}`,
-          title: product.name,
+          title: product.name || `Sản phẩm #${product.id}`,
           subtitle: `${product.sku || `SKU-${product.id}`} · ${product.stock} tồn kho`,
-          path: `/admin/products?search=${encodeURIComponent(product.sku || product.name)}`,
+          path: `/admin/products?search=${encodeURIComponent(product.sku || product.name || String(product.id))}`,
           icon: 'fa-box',
           typeLabel: 'Sản phẩm',
         }))
@@ -343,16 +379,16 @@ export default function AdminLayout() {
     const customerResults: SearchResult[] = keyword
       ? customers
         .filter((customer) =>
-          customer.name.toLowerCase().includes(keyword)
-          || customer.email.toLowerCase().includes(keyword)
-          || (customer.phone || '').toLowerCase().includes(keyword),
+          safeText(customer.name).includes(keyword)
+          || safeText(customer.email).includes(keyword)
+          || safeText(customer.phone).includes(keyword),
         )
         .slice(0, 3)
         .map((customer) => ({
-          id: `customer-${customer.email}`,
-          title: customer.name,
-          subtitle: customer.email || customer.phone || 'Khách hàng',
-          path: `/admin/customers?search=${encodeURIComponent(customer.email || customer.name)}`,
+          id: `customer-${customer.id || customer.email || customer.phone || customer.name}`,
+          title: customer.name || 'Khách hàng',
+          subtitle: customer.email || customer.phone || 'Chưa có thông tin liên hệ',
+          path: `/admin/customers?search=${encodeURIComponent(customer.email || customer.phone || customer.name)}`,
           icon: 'fa-users',
           typeLabel: 'Khách hàng',
         }))
@@ -362,34 +398,33 @@ export default function AdminLayout() {
       ? [
           {
             id: `action-orders-${keyword}`,
-            title: `Tim đơn hàng voi "${searchQuery.trim()}"`,
-            subtitle: 'Mo bộ lọc tìm kiếm trong trang Đơn hàng',
+            title: `Tìm đơn hàng với “${searchQuery.trim()}”`,
+            subtitle: 'Mở bộ lọc tìm kiếm trong trang Đơn hàng',
             path: `/admin/orders?search=${encodeURIComponent(searchQuery.trim())}`,
             icon: 'fa-shopping-cart',
-            typeLabel: 'Tac vu',
+            typeLabel: 'Tác vụ',
           },
           {
             id: `action-products-${keyword}`,
-            title: `Tim sản phẩm voi "${searchQuery.trim()}"`,
-            subtitle: 'Mo bộ lọc tìm kiếm trong trang Sản phẩm',
+            title: `Tìm sản phẩm với “${searchQuery.trim()}”`,
+            subtitle: 'Mở bộ lọc tìm kiếm trong trang Sản phẩm',
             path: `/admin/products?search=${encodeURIComponent(searchQuery.trim())}`,
             icon: 'fa-box',
-            typeLabel: 'Tac vu',
+            typeLabel: 'Tác vụ',
           },
           {
             id: `action-customers-${keyword}`,
-            title: `Tim khách hàng voi "${searchQuery.trim()}"`,
-            subtitle: 'Mo bộ lọc tìm kiếm trong trang Khách hàng',
+            title: `Tìm khách hàng với “${searchQuery.trim()}”`,
+            subtitle: 'Mở bộ lọc tìm kiếm trong trang Khách hàng',
             path: `/admin/customers?search=${encodeURIComponent(searchQuery.trim())}`,
             icon: 'fa-users',
-            typeLabel: 'Tac vu',
+            typeLabel: 'Tác vụ',
           },
         ]
       : [];
 
-    return [...routeResults, ...orderResults, ...productResults, ...customerResults, ...keywordActions]
-      .slice(0, 10);
-  }, [customers, orders, products, searchQuery]);
+    return [...routeResults, ...orderResults, ...productResults, ...customerResults, ...keywordActions].slice(0, 10);
+  }, [customers, orders, products, searchQuery, visibleMenu]);
 
   const notifications = useMemo(() => {
     const settings = readAdminSettings();
@@ -397,22 +432,19 @@ export default function AdminLayout() {
     const inventoryAlerts = inventoryService.getAlertProducts(products);
     const now = Date.now();
     const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-    const recentCancelled = orders.filter((order) => {
-      if (order.status !== 'cancelled') {
-        return false;
-      }
 
+    const recentCancelled = orders.filter((order) => {
+      if (order.status !== 'cancelled') return false;
       const timestamp = new Date(order.updatedAt || order.createdAt).getTime();
       return Number.isFinite(timestamp) && timestamp >= sevenDaysAgo;
     }).length;
-    const recentCustomers = customers.filter((customer) => {
-      if (!customer.createdAt) {
-        return false;
-      }
 
+    const recentCustomers = customers.filter((customer) => {
+      if (!customer.createdAt) return false;
       const timestamp = new Date(customer.createdAt).getTime();
       return Number.isFinite(timestamp) && timestamp >= sevenDaysAgo;
     }).length;
+
     const pendingOrders = orders.filter((order) => order.status === 'pending').length;
     const pendingReviews = reviews.filter((review) => review.status === 'pending').length;
     const outOfStockCount = inventoryAlerts.filter((product) => product.alertLevel === 'critical').length;
@@ -422,8 +454,8 @@ export default function AdminLayout() {
     if (settings.notifyNewOrder && pendingOrders > 0) {
       nextNotifications.push({
         id: 'pending-orders',
-        title: 'Đơn hàng cho xử lý',
-        detail: 'Cần xác nhận và đẩy đơn mới trong danh sách chờ xử lý.',
+        title: 'Đơn hàng chờ xử lý',
+        detail: 'Cần xác nhận và đẩy các đơn mới trong danh sách chờ xử lý.',
         count: pendingOrders,
         path: '/admin/orders?status=pending',
         icon: 'fa-clock',
@@ -446,8 +478,8 @@ export default function AdminLayout() {
     if (inventorySettings.inAppNotifications && settings.notifyOutOfStock && outOfStockCount > 0) {
       nextNotifications.push({
         id: 'out-of-stock',
-        title: 'Sản phẩm da hết hàng',
-        detail: 'Cần nhập thêm hang cho cac ma da cham mục 0 tồn kho.',
+        title: 'Sản phẩm đã hết hàng',
+        detail: 'Cần nhập thêm hàng cho các mã đã chạm mức 0 tồn kho.',
         count: outOfStockCount,
         path: '/admin/inventory/alerts',
         icon: 'fa-box-open',
@@ -470,7 +502,7 @@ export default function AdminLayout() {
     if (settings.notifyNewReview && pendingReviews > 0) {
       nextNotifications.push({
         id: 'pending-reviews',
-        title: 'Đánh giá cho duyet',
+        title: 'Đánh giá chờ duyệt',
         detail: 'Review mới đang chờ kiểm duyệt và phản hồi từ admin.',
         count: pendingReviews,
         path: '/admin/reviews?status=pending',
@@ -482,7 +514,7 @@ export default function AdminLayout() {
     if (settings.notifyNewCustomer && recentCustomers > 0) {
       nextNotifications.push({
         id: 'new-customers',
-        title: 'Khách hàng mới trong 7 ngay',
+        title: 'Khách hàng mới trong 7 ngày',
         detail: 'Có thêm khách hàng mới cần được phân nhóm và chăm sóc.',
         count: recentCustomers,
         path: '/admin/customers',
@@ -504,12 +536,20 @@ export default function AdminLayout() {
     setSearchQuery('');
     setSearchOpen(false);
     setNotificationsOpen(false);
+    setAccountMenuOpen(false);
     closeMobileMenu();
   };
 
   const toggleNotificationPanel = () => {
     loadAdminSignals();
     setNotificationsOpen((current) => !current);
+    setSearchOpen(false);
+    setAccountMenuOpen(false);
+  };
+
+  const toggleAccountMenu = () => {
+    setAccountMenuOpen((current) => !current);
+    setNotificationsOpen(false);
     setSearchOpen(false);
   };
 
@@ -519,23 +559,28 @@ export default function AdminLayout() {
         location.pathname.startsWith('/admin/products/add') ? 'product-builder-frame' : ''
       }`}
     >
-      {/* Sidebar */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'active' : ''}`} id="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <img src="/images/logokaitokid.png" alt="KAITO KID" />
             <span className="sidebar-title">KAITO KID</span>
           </div>
-          <button className="sidebar-toggle" onClick={toggleSidebar}>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-label={isMobileViewport() ? (mobileMenuOpen ? 'Đóng menu admin' : 'Mở menu admin') : (collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar')}
+            aria-expanded={isMobileViewport() ? mobileMenuOpen : !collapsed}
+          >
             <AdminIcon name="fa fa-bars" />
           </button>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" aria-label="Điều hướng quản trị">
           <ul className="nav-list">
-            {visibleMenu.map((item, index) => (
+            {visibleMenu.map((item) => (
               <li
-                key={index}
+                key={item.path || item.label}
                 className={`nav-item ${item.submenu ? 'has-submenu' : ''} ${isActive(item) ? 'active' : ''} ${openSubmenu === item.label ? 'open' : ''}`}
               >
                 {item.path ? (
@@ -545,22 +590,20 @@ export default function AdminLayout() {
                   </Link>
                 ) : (
                   <>
-                    <a
-                      href="#"
-                      className="nav-link"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleSubmenu(item.label);
-                      }}
+                    <button
+                      type="button"
+                      className="nav-link nav-link-button"
+                      onClick={() => toggleSubmenu(item.label)}
+                      aria-expanded={openSubmenu === item.label}
                     >
                       <AdminIcon name={item.icon} />
                       <span>{item.label}</span>
                       <AdminIcon name="fa fa-chevron-down" className="submenu-arrow" />
-                    </a>
+                    </button>
                     {item.submenu && (
                       <ul className="submenu">
-                        {item.submenu.map((sub, subIndex) => (
-                          <li key={subIndex}>
+                        {item.submenu.map((sub) => (
+                          <li key={sub.path}>
                             <Link to={sub.path} onClick={closeMobileMenu}>{sub.label}</Link>
                           </li>
                         ))}
@@ -574,7 +617,15 @@ export default function AdminLayout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="admin-info">
+          <button
+            type="button"
+            className="admin-info admin-info-button"
+            onClick={() => {
+              navigate('/admin/profile');
+              closeMobileMenu();
+            }}
+            title="Mở hồ sơ admin"
+          >
             <div className="admin-avatar">
               {adminAvatar ? <img src={adminAvatar} alt={adminName} /> : <span className="admin-avatar-initial">{adminInitial}</span>}
             </div>
@@ -582,6 +633,12 @@ export default function AdminLayout() {
               <span className="admin-name">{adminName}</span>
               <span className="admin-role">{adminRole}</span>
             </div>
+          </button>
+          <div className="sidebar-footer-actions">
+            <button type="button" className="sidebar-logout-btn" onClick={() => void handleLogout()} title="Đăng xuất">
+              <AdminIcon name="fa-right-from-bracket" />
+              <span>Đăng xuất</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -590,15 +647,19 @@ export default function AdminLayout() {
         type="button"
         className={`sidebar-overlay ${mobileMenuOpen ? 'active' : ''}`}
         onClick={closeMobileMenu}
-        aria-label="Động menu admin"
+        aria-label="Đóng menu admin"
       />
 
-      {/* Main Content */}
       <div className="main-content">
-        {/* Top Bar */}
         <header className="top-bar">
           <div className="top-bar-left">
-            <button className="mobile-menu-btn" onClick={toggleSidebar}>
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={toggleSidebar}
+              aria-label={mobileMenuOpen ? 'Đóng menu admin' : 'Mở menu admin'}
+              aria-expanded={mobileMenuOpen}
+            >
               <AdminIcon name="fa fa-bars" />
             </button>
             <div className={`search-box ${searchOpen ? 'is-open' : ''}`} ref={searchRef}>
@@ -609,23 +670,23 @@ export default function AdminLayout() {
                 onChange={(event) => {
                   setSearchQuery(event.target.value);
                   setSearchOpen(true);
+                  setAccountMenuOpen(false);
                 }}
                 onFocus={() => {
                   loadAdminSignals();
                   setSearchOpen(true);
                   setNotificationsOpen(false);
+                  setAccountMenuOpen(false);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && searchResults.length > 0) {
                     event.preventDefault();
                     handleSelectSearchResult(searchResults[0]);
                   }
-
-                  if (event.key === 'Escape') {
-                    setSearchOpen(false);
-                  }
+                  if (event.key === 'Escape') setSearchOpen(false);
                 }}
                 placeholder="Tìm đơn hàng, sản phẩm, khách hàng..."
+                aria-label="Tìm kiếm trong trang quản trị"
               />
               {searchOpen && (
                 <div className="admin-search-dropdown">
@@ -642,9 +703,7 @@ export default function AdminLayout() {
                           className="admin-search-result"
                           onClick={() => handleSelectSearchResult(result)}
                         >
-                          <span className="admin-search-result-icon">
-                            <AdminIcon name={result.icon} />
-                          </span>
+                          <span className="admin-search-result-icon"><AdminIcon name={result.icon} /></span>
                           <span className="admin-search-result-copy">
                             <span className="admin-search-result-title">{result.title}</span>
                             <span className="admin-search-result-subtitle">{result.subtitle}</span>
@@ -663,6 +722,7 @@ export default function AdminLayout() {
               )}
             </div>
           </div>
+
           <div className="top-bar-right">
             <div className={`topbar-notifications ${notificationsOpen ? 'is-open' : ''}`} ref={notificationRef}>
               <button
@@ -696,12 +756,11 @@ export default function AdminLayout() {
                           onClick={() => {
                             navigate(item.path);
                             setNotificationsOpen(false);
+                            setAccountMenuOpen(false);
                             closeMobileMenu();
                           }}
                         >
-                          <span className="notification-item-icon">
-                            <AdminIcon name={item.icon} />
-                          </span>
+                          <span className="notification-item-icon"><AdminIcon name={item.icon} /></span>
                           <span className="notification-item-copy">
                             <span className="notification-item-title">{item.title}</span>
                             <span className="notification-item-detail">{item.detail}</span>
@@ -713,29 +772,41 @@ export default function AdminLayout() {
                   ) : (
                     <div className="notification-empty">
                       <AdminIcon name="fa fa-check-circle" />
-                      <span>Không có thông báo cần xử lý ngay luc này.</span>
+                      <span>Không có thông báo cần xử lý ngay lúc này.</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
+
             <a href="/" className="view-site-btn" target="_blank" rel="noreferrer">
               <AdminIcon name="fa fa-external-link-alt" />
               <span>Xem trang chủ</span>
             </a>
-            <div className="admin-dropdown">
-              <button className="admin-btn">
+
+            <div className={`admin-dropdown ${accountMenuOpen ? 'is-open' : ''}`} ref={accountRef}>
+              <button
+                type="button"
+                className="admin-btn"
+                onClick={toggleAccountMenu}
+                aria-haspopup="menu"
+                aria-expanded={accountMenuOpen}
+              >
                 <div className="admin-avatar-small">
                   {adminAvatar ? <img src={adminAvatar} alt={adminName} /> : <span className="admin-avatar-initial">{adminInitial}</span>}
                 </div>
                 <span>{adminName}</span>
                 <AdminIcon name="fa fa-chevron-down" />
               </button>
-              <div className="admin-dropdown-menu">
-                <Link to="/admin/profile"><AdminIcon name="fa fa-user" /> Hồ sơ admin</Link>
-                <Link to="/admin/settings"><AdminIcon name="fa fa-cog" /> Cài đặt</Link>
-                <div className="dropdown-divider"></div>
-                <button type="button" className="admin-dropdown-action" onClick={handleLogout}>
+              <div className="admin-dropdown-menu" role="menu" aria-hidden={!accountMenuOpen}>
+                <div className="account-menu-meta">
+                  <strong>{adminName}</strong>
+                  <span>{adminEmail || adminRole}</span>
+                </div>
+                <Link to="/admin/profile" onClick={() => setAccountMenuOpen(false)}><AdminIcon name="fa fa-user" /> Hồ sơ admin</Link>
+                <Link to="/admin/settings" onClick={() => setAccountMenuOpen(false)}><AdminIcon name="fa fa-cog" /> Cài đặt</Link>
+                <div className="dropdown-divider" />
+                <button type="button" className="admin-dropdown-action logout-action" onClick={() => void handleLogout()}>
                   <AdminIcon name="fa fa-sign-out-alt" /> Đăng xuất
                 </button>
               </div>
@@ -743,7 +814,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* Content */}
         <div className="content-wrapper">
           <Outlet />
         </div>
