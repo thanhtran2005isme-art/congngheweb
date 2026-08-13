@@ -11,16 +11,28 @@ public class ProductService(CustomerDbContext db) : IProductService
 {
     public async Task<PagedResult<ProductDTO>> GetAllAsync(ProductFilterDTO filter)
     {
+        var storefront = filter as StorefrontProductFilterDTO;
         var query = db.Products.Where(p => p.Status == "active").AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(filter.Category))
+        var category = filter.Category?.Trim();
+        var subcategory = storefront?.Subcategory?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(category))
         {
-            var category = filter.Category.Trim();
             var rootCategory = ToCanonicalRootCategory(category);
-            query = rootCategory is not null
-                ? query.Where(p => p.Category == rootCategory || p.Category == category)
-                : query.Where(p => p.Subcategory == category || p.Category == category);
+            if (rootCategory is not null)
+            {
+                query = query.Where(p => p.Category == rootCategory || p.Category == category);
+            }
+            else if (string.IsNullOrWhiteSpace(subcategory))
+            {
+                // Tương thích URL cũ: category=Áo thun trong khi DB lưu Áo thun ở DanhMucPhu.
+                query = query.Where(p => p.Subcategory == category || p.Category == category);
+            }
         }
+
+        if (!string.IsNullOrWhiteSpace(subcategory))
+            query = query.Where(p => p.Subcategory == subcategory);
 
         if (!string.IsNullOrWhiteSpace(filter.Gender))
         {
@@ -28,14 +40,55 @@ public class ProductService(CustomerDbContext db) : IProductService
             query = query.Where(p => aliases.Contains(p.Gender));
         }
 
-        if (!string.IsNullOrEmpty(filter.Search))
-            query = query.Where(p => p.Name.Contains(filter.Search) || p.Description.Contains(filter.Search));
+        if (!string.IsNullOrWhiteSpace(storefront?.Style))
+        {
+            var style = storefront.Style.Trim();
+            query = query.Where(p => p.Style != null && p.Style == style);
+        }
+
+        if (!string.IsNullOrWhiteSpace(storefront?.AgeGroup))
+        {
+            var ageGroup = storefront.AgeGroup.Trim();
+            query = query.Where(p => p.AgeGroup != null && p.AgeGroup == ageGroup);
+        }
+
+        if (!string.IsNullOrWhiteSpace(storefront?.Collection)
+            && int.TryParse(storefront.Collection, out var collectionId))
+        {
+            query = query.Where(p => p.CollectionId == collectionId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var keyword = filter.Search.Trim();
+            query = query.Where(p =>
+                p.Name.Contains(keyword)
+                || p.Sku.Contains(keyword)
+                || p.Description.Contains(keyword)
+                || (p.ShortDescription != null && p.ShortDescription.Contains(keyword))
+                || (p.Subcategory != null && p.Subcategory.Contains(keyword)));
+        }
 
         if (filter.MinPrice.HasValue)
             query = query.Where(p => p.Price >= filter.MinPrice.Value);
 
         if (filter.MaxPrice.HasValue)
             query = query.Where(p => p.Price <= filter.MaxPrice.Value);
+
+        if (storefront?.MinRating is > 0)
+            query = query.Where(p => p.Rating >= storefront.MinRating.Value);
+
+        foreach (var size in SplitFacetValues(storefront?.Sizes))
+        {
+            var token = $"\"{size}\"";
+            query = query.Where(p => p.Sizes != null && p.Sizes.Contains(token));
+        }
+
+        foreach (var color in SplitFacetValues(storefront?.Colors))
+        {
+            var token = $"\"{color}\"";
+            query = query.Where(p => p.Colors != null && p.Colors.Contains(token));
+        }
 
         if (filter.IsNew == true)
             query = query.Where(p => p.IsNew);
@@ -105,6 +158,13 @@ public class ProductService(CustomerDbContext db) : IProductService
         if (product is null) return [];
         return await db.Products.Where(p => p.Status == "active" && p.Id != productId && p.Category == product.Category).OrderByDescending(p => p.SoldCount).Take(count).Select(p => MapToDTO(p)).ToListAsync();
     }
+
+    private static string[] SplitFacetValues(string? value) =>
+        (value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private static string? ToCanonicalRootCategory(string value) => RemoveDiacritics(value).ToLowerInvariant().Trim() switch
     {
