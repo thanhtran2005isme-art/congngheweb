@@ -12,7 +12,7 @@ import {
   type KaitoKidBranch,
   type ShippingTestResult,
 } from '../services/api';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatDate } from '../utils/format';
 import '../styles/admin/admin-shipping.css';
 
 type TabKey = 'overview' | 'history' | 'config';
@@ -52,13 +52,6 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 function percent(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
-}
-
-function providerEnabled(config: AdminShippingConfig | null, provider: ProviderKey) {
-  if (!config) return false;
-  if (provider === 'mock') return config.mockEnabled;
-  if (provider === 'ghn') return config.ghnEnabled;
-  return config.ghtkEnabled;
 }
 
 export default function AdminShipping() {
@@ -162,7 +155,7 @@ export default function AdminShipping() {
         ))}
       </nav>
 
-      {tab === 'overview' && <OverviewTab onRefresh={() => void loadSummary(true)} />}
+      {tab === 'overview' && <OverviewTab />}
       {tab === 'history' && <HistoryTab />}
       {tab === 'config' && <ConfigTab onChanged={() => void loadSummary(true)} />}
     </div>
@@ -304,155 +297,68 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div className="shipping-content-stack">
-      <Panel
-        icon="fa-network-wired"
-        title="Kênh vận chuyển"
-        description="Bật/tắt từng nhà vận chuyển và kiểm tra sức khỏe kết nối trước khi đưa vào checkout."
-      >
+      <Panel icon="fa-network-wired" title="Kênh vận chuyển" description="Bật/tắt từng nhà vận chuyển và kiểm tra sức khỏe kết nối trước khi đưa vào checkout.">
         <div className="shipping-provider-grid">
-          <ProviderCard
-            provider="mock"
-            name="KaitoKid nội bộ"
-            description="Tự giao tại các tỉnh có cơ sở. Phù hợp demo, nội thành và các khu vực do KaitoKid tự phục vụ."
-            enabled={config.mockEnabled}
-            onChange={(value) => update({ mockEnabled: value })}
-            onTest={() => void test('mock')}
-            testing={testing === 'mock'}
-            result={testResult.mock}
-          />
-          <ProviderCard
-            provider="ghn"
-            name="Giao Hàng Nhanh"
-            description="Tích hợp calculate-fee của GHN để lấy phí vận chuyển theo khu vực giao hàng."
-            enabled={config.ghnEnabled}
-            onChange={(value) => update({ ghnEnabled: value })}
-            onTest={() => void test('ghn')}
-            testing={testing === 'ghn'}
-            result={testResult.ghn}
-          />
-          <ProviderCard
-            provider="ghtk"
-            name="Giao Hàng Tiết Kiệm"
-            description="Tính phí giao hàng bằng API GHTK, dùng cho khu vực ngoài mạng lưới nội bộ."
-            enabled={config.ghtkEnabled}
-            onChange={(value) => update({ ghtkEnabled: value })}
-            onTest={() => void test('ghtk')}
-            testing={testing === 'ghtk'}
-            result={testResult.ghtk}
-          />
+          <ProviderCard provider="mock" name="KaitoKid nội bộ" description="Tự giao tại các tỉnh có cơ sở. Phù hợp demo, nội thành và các khu vực do KaitoKid tự phục vụ." enabled={config.mockEnabled} onChange={(value) => update({ mockEnabled: value })} onTest={() => void test('mock')} testing={testing === 'mock'} result={testResult.mock} />
+          <ProviderCard provider="ghn" name="Giao Hàng Nhanh" description="Tích hợp calculate-fee của GHN để lấy phí vận chuyển theo khu vực giao hàng." enabled={config.ghnEnabled} onChange={(value) => update({ ghnEnabled: value })} onTest={() => void test('ghn')} testing={testing === 'ghn'} result={testResult.ghn} />
+          <ProviderCard provider="ghtk" name="Giao Hàng Tiết Kiệm" description="Tính phí giao hàng bằng API GHTK, dùng cho khu vực ngoài mạng lưới nội bộ." enabled={config.ghtkEnabled} onChange={(value) => update({ ghtkEnabled: value })} onTest={() => void test('ghtk')} testing={testing === 'ghtk'} result={testResult.ghtk} />
         </div>
       </Panel>
 
       <div className="shipping-config-grid">
         <Panel icon="fa-truck-fast" title="Giao Hàng Nhanh" description="Thông tin API, shop và điểm lấy/giao mặc định dùng khi test phí.">
           <div className="shipping-field-grid">
-            <Field label="Base URL" hint="Sandbox: dev-online-gateway.ghn.vn">
-              <input className="shipping-input" value={config.ghnBaseUrl || ''} onChange={(event) => update({ ghnBaseUrl: event.target.value })} placeholder="https://dev-online-gateway.ghn.vn" />
-            </Field>
-            <Field label="Token (UUID)">
-              <input className="shipping-input" value={config.ghnToken || ''} onChange={(event) => update({ ghnToken: event.target.value })} placeholder="********-****-****-************" />
-            </Field>
-            <Field label="Shop ID">
-              <input className="shipping-input" value={config.ghnShopId || ''} onChange={(event) => update({ ghnShopId: event.target.value })} placeholder="VD: 192xxx" />
-            </Field>
-            <Field label="From District ID">
-              <input className="shipping-input" value={config.ghnFromDistrictId || ''} onChange={(event) => update({ ghnFromDistrictId: event.target.value })} placeholder="VD: 1442" />
-            </Field>
-            <Field label="To District ID test">
-              <input className="shipping-input" value={config.ghnToDistrictIdFallback || ''} onChange={(event) => update({ ghnToDistrictIdFallback: event.target.value })} placeholder="VD: 1454" />
-            </Field>
-            <Field label="To Ward Code">
-              <input className="shipping-input" value={config.ghnToWardCodeFallback || ''} onChange={(event) => update({ ghnToWardCodeFallback: event.target.value })} placeholder="VD: 21211" />
-            </Field>
+            <Field label="Base URL" hint="Sandbox: dev-online-gateway.ghn.vn"><input className="shipping-input" value={config.ghnBaseUrl || ''} onChange={(event) => update({ ghnBaseUrl: event.target.value })} placeholder="https://dev-online-gateway.ghn.vn" /></Field>
+            <Field label="Token (UUID)"><input className="shipping-input" value={config.ghnToken || ''} onChange={(event) => update({ ghnToken: event.target.value })} placeholder="********-****-****-************" /></Field>
+            <Field label="Shop ID"><input className="shipping-input" value={config.ghnShopId || ''} onChange={(event) => update({ ghnShopId: event.target.value })} placeholder="VD: 192xxx" /></Field>
+            <Field label="From District ID"><input className="shipping-input" value={config.ghnFromDistrictId || ''} onChange={(event) => update({ ghnFromDistrictId: event.target.value })} placeholder="VD: 1442" /></Field>
+            <Field label="To District ID test"><input className="shipping-input" value={config.ghnToDistrictIdFallback || ''} onChange={(event) => update({ ghnToDistrictIdFallback: event.target.value })} placeholder="VD: 1454" /></Field>
+            <Field label="To Ward Code"><input className="shipping-input" value={config.ghnToWardCodeFallback || ''} onChange={(event) => update({ ghnToWardCodeFallback: event.target.value })} placeholder="VD: 21211" /></Field>
           </div>
-
           <div className="shipping-lookup-box">
-            <button type="button" className="shipping-button small" onClick={() => void toggleLookup()}>
-              <AdminIcon name="fa-location-dot" /> {lookupOpen ? 'Đóng tra cứu District ID' : 'Tra cứu District ID GHN'}
-            </button>
-            {lookupOpen && (
-              <div className="shipping-lookup-grid">
-                <select className="shipping-select" defaultValue="" onChange={(event) => void loadDistricts(Number(event.target.value))}>
-                  <option value="">Chọn tỉnh / thành</option>
-                  {provinces.map((province) => <option key={province.ProvinceID} value={province.ProvinceID}>{province.ProvinceName}</option>)}
-                </select>
-                <select className="shipping-select" defaultValue="" disabled={districtLoading || districts.length === 0} onChange={(event) => void chooseDistrict(Number(event.target.value))}>
-                  <option value="">{districtLoading ? 'Đang tải quận / huyện...' : 'Chọn quận / huyện để copy ID'}</option>
-                  {districts.map((district) => <option key={district.DistrictID} value={district.DistrictID}>{district.DistrictName} · ID {district.DistrictID}</option>)}
-                </select>
-              </div>
-            )}
+            <button type="button" className="shipping-button small" onClick={() => void toggleLookup()}><AdminIcon name="fa-location-dot" /> {lookupOpen ? 'Đóng tra cứu District ID' : 'Tra cứu District ID GHN'}</button>
+            {lookupOpen && <div className="shipping-lookup-grid">
+              <select className="shipping-select" defaultValue="" onChange={(event) => void loadDistricts(Number(event.target.value))}><option value="">Chọn tỉnh / thành</option>{provinces.map((province) => <option key={province.ProvinceID} value={province.ProvinceID}>{province.ProvinceName}</option>)}</select>
+              <select className="shipping-select" defaultValue="" disabled={districtLoading || districts.length === 0} onChange={(event) => void chooseDistrict(Number(event.target.value))}><option value="">{districtLoading ? 'Đang tải quận / huyện...' : 'Chọn quận / huyện để copy ID'}</option>{districts.map((district) => <option key={district.DistrictID} value={district.DistrictID}>{district.DistrictName} · ID {district.DistrictID}</option>)}</select>
+            </div>}
             {lookupOpen && <div className="shipping-lookup-note">Chọn quận/huyện sẽ tự copy District ID vào clipboard để bạn dán vào trường tương ứng.</div>}
           </div>
         </Panel>
 
         <Panel icon="fa-boxes-packing" title="Giao Hàng Tiết Kiệm" description="Token API và khu vực lấy hàng mặc định của GHTK.">
           <div className="shipping-field-grid">
-            <Field label="Base URL">
-              <input className="shipping-input" value={config.ghtkBaseUrl || ''} onChange={(event) => update({ ghtkBaseUrl: event.target.value })} placeholder="https://services.giaohangtietkiem.vn" />
-            </Field>
-            <Field label="Token">
-              <input className="shipping-input" value={config.ghtkToken || ''} onChange={(event) => update({ ghtkToken: event.target.value })} placeholder="********" />
-            </Field>
-            <Field label="Tỉnh lấy hàng">
-              <input className="shipping-input" value={config.ghtkPickProvince || ''} onChange={(event) => update({ ghtkPickProvince: event.target.value })} placeholder="Hà Nội" />
-            </Field>
-            <Field label="Quận / huyện lấy hàng">
-              <input className="shipping-input" value={config.ghtkPickDistrict || ''} onChange={(event) => update({ ghtkPickDistrict: event.target.value })} placeholder="Cầu Giấy" />
-            </Field>
+            <Field label="Base URL"><input className="shipping-input" value={config.ghtkBaseUrl || ''} onChange={(event) => update({ ghtkBaseUrl: event.target.value })} placeholder="https://services.giaohangtietkiem.vn" /></Field>
+            <Field label="Token"><input className="shipping-input" value={config.ghtkToken || ''} onChange={(event) => update({ ghtkToken: event.target.value })} placeholder="********" /></Field>
+            <Field label="Tỉnh lấy hàng"><input className="shipping-input" value={config.ghtkPickProvince || ''} onChange={(event) => update({ ghtkPickProvince: event.target.value })} placeholder="Hà Nội" /></Field>
+            <Field label="Quận / huyện lấy hàng"><input className="shipping-input" value={config.ghtkPickDistrict || ''} onChange={(event) => update({ ghtkPickDistrict: event.target.value })} placeholder="Cầu Giấy" /></Field>
           </div>
-          <div className="shipping-lookup-box">
-            <span className="shipping-overline"><AdminIcon name="fa-circle-info" /> Lưu ý cấu hình</span>
-            <div className="shipping-lookup-note">Dùng token sandbox/production đúng với Base URL. Có thể kiểm tra ngay bằng nút Test trên thẻ nhà vận chuyển phía trên.</div>
-          </div>
+          <div className="shipping-lookup-box"><span className="shipping-overline"><AdminIcon name="fa-circle-info" /> Lưu ý cấu hình</span><div className="shipping-lookup-note">Dùng token sandbox/production đúng với Base URL. Có thể kiểm tra ngay bằng nút Test trên thẻ nhà vận chuyển phía trên.</div></div>
         </Panel>
       </div>
 
-      <Panel
-        icon="fa-store"
-        title="Mạng lưới KaitoKid tự giao"
-        description="Quản lý vùng phủ nội bộ, phí giao cùng tỉnh và SLA tiêu chuẩn / hỏa tốc."
-        actions={<button type="button" className="shipping-button small" onClick={addBranch}><AdminIcon name="fa-plus" /> Thêm cơ sở</button>}
-      >
+      <Panel icon="fa-store" title="Mạng lưới KaitoKid tự giao" description="Quản lý vùng phủ nội bộ, phí giao cùng tỉnh và SLA tiêu chuẩn / hỏa tốc." actions={<button type="button" className="shipping-button small" onClick={addBranch}><AdminIcon name="fa-plus" /> Thêm cơ sở</button>}>
         <div className="shipping-internal-summary">
           <p>Khi khách ở tỉnh có cơ sở đang hoạt động, checkout có thể hiển thị lựa chọn giao nội bộ KaitoKid.</p>
-          <label className="shipping-inline-toggle">
-            <span>Chỉ phục vụ tỉnh có cơ sở</span>
-            <span className="shipping-switch">
-              <input type="checkbox" checked={config.mockOnlyServeBranches !== false} onChange={(event) => update({ mockOnlyServeBranches: event.target.checked })} />
-              <span />
-            </span>
-          </label>
+          <label className="shipping-inline-toggle"><span>Chỉ phục vụ tỉnh có cơ sở</span><span className="shipping-switch"><input type="checkbox" checked={config.mockOnlyServeBranches !== false} onChange={(event) => update({ mockOnlyServeBranches: event.target.checked })} /><span /></span></label>
         </div>
-
         <div className="shipping-field-grid four" style={{ marginBottom: 18 }}>
           <Field label="Phí cùng tỉnh (VND)"><input className="shipping-input" type="number" value={config.mockFeeSameProvince ?? 22000} onChange={(event) => update({ mockFeeSameProvince: Number(event.target.value) })} /></Field>
           <Field label="Phụ thu hỏa tốc (VND)"><input className="shipping-input" type="number" value={config.mockFeeExpress ?? 15000} onChange={(event) => update({ mockFeeExpress: Number(event.target.value) })} /></Field>
           <Field label="SLA tiêu chuẩn (giờ)"><input className="shipping-input" type="number" value={config.mockLeadTimeStandardHours ?? 6} onChange={(event) => update({ mockLeadTimeStandardHours: Number(event.target.value) })} /></Field>
           <Field label="SLA hỏa tốc (giờ)"><input className="shipping-input" type="number" value={config.mockLeadTimeExpressHours ?? 2} onChange={(event) => update({ mockLeadTimeExpressHours: Number(event.target.value) })} /></Field>
         </div>
-
         <div className="shipping-table-wrap">
           <table className="shipping-branch-table">
             <thead><tr><th>Mã</th><th>Tên cơ sở</th><th>Tỉnh / thành</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Trạng thái</th><th /></tr></thead>
-            <tbody>
-              {branches.map((branch, index) => (
-                <tr key={`${branch.code}-${index}`} className={branch.active ? '' : 'is-disabled'}>
-                  <td><input className="shipping-input" value={branch.code} onChange={(event) => updateBranch(index, { code: event.target.value })} placeholder="HN" /></td>
-                  <td><input className="shipping-input" value={branch.name} onChange={(event) => updateBranch(index, { name: event.target.value })} placeholder="KaitoKid Hà Nội" /></td>
-                  <td><input className="shipping-input" value={branch.province} onChange={(event) => updateBranch(index, { province: event.target.value })} placeholder="Hà Nội" /></td>
-                  <td><input className="shipping-input" value={branch.address || ''} onChange={(event) => updateBranch(index, { address: event.target.value })} placeholder="Địa chỉ chi tiết" /></td>
-                  <td><input className="shipping-input" value={branch.phone || ''} onChange={(event) => updateBranch(index, { phone: event.target.value })} placeholder="09xxxxxxxx" /></td>
-                  <td>
-                    <label className="shipping-switch" title={branch.active ? 'Đang hoạt động' : 'Đang tắt'}>
-                      <input type="checkbox" checked={branch.active} onChange={(event) => updateBranch(index, { active: event.target.checked })} />
-                      <span />
-                    </label>
-                  </td>
-                  <td><div className="shipping-branch-actions"><button type="button" className="shipping-icon-button danger" onClick={() => removeBranch(index)} aria-label={`Xóa cơ sở ${branch.name || index + 1}`}><AdminIcon name="fa-trash" /></button></div></td>
-                </tr>
-              ))}
-            </tbody>
+            <tbody>{branches.map((branch, index) => <tr key={`${branch.code}-${index}`} className={branch.active ? '' : 'is-disabled'}>
+              <td><input className="shipping-input" value={branch.code} onChange={(event) => updateBranch(index, { code: event.target.value })} placeholder="HN" /></td>
+              <td><input className="shipping-input" value={branch.name} onChange={(event) => updateBranch(index, { name: event.target.value })} placeholder="KaitoKid Hà Nội" /></td>
+              <td><input className="shipping-input" value={branch.province} onChange={(event) => updateBranch(index, { province: event.target.value })} placeholder="Hà Nội" /></td>
+              <td><input className="shipping-input" value={branch.address || ''} onChange={(event) => updateBranch(index, { address: event.target.value })} placeholder="Địa chỉ chi tiết" /></td>
+              <td><input className="shipping-input" value={branch.phone || ''} onChange={(event) => updateBranch(index, { phone: event.target.value })} placeholder="09xxxxxxxx" /></td>
+              <td><label className="shipping-switch" title={branch.active ? 'Đang hoạt động' : 'Đang tắt'}><input type="checkbox" checked={branch.active} onChange={(event) => updateBranch(index, { active: event.target.checked })} /><span /></label></td>
+              <td><div className="shipping-branch-actions"><button type="button" className="shipping-icon-button danger" onClick={() => removeBranch(index)} aria-label={`Xóa cơ sở ${branch.name || index + 1}`}><AdminIcon name="fa-trash" /></button></div></td>
+            </tr>)}</tbody>
           </table>
           {branches.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-store" /></span><strong>Chưa có cơ sở nội bộ</strong><p>Thêm cơ sở để mở vùng giao KaitoKid tại tỉnh/thành tương ứng.</p></div>}
         </div>
@@ -469,47 +375,19 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
 
       <div className="shipping-save-bar">
         <p><AdminIcon name="fa-circle-info" /> Thay đổi chỉ có hiệu lực sau khi bấm <strong>Lưu cấu hình</strong>.</p>
-        <div className="shipping-save-actions">
-          <button type="button" className="shipping-button" onClick={() => void load()} disabled={saving}><AdminIcon name="fa-rotate-left" /> Khôi phục</button>
-          <button type="button" className="shipping-button primary" onClick={() => void save()} disabled={saving}><AdminIcon name={`fa-floppy-disk${saving ? ' fa-spin' : ''}`} /> {saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
-        </div>
+        <div className="shipping-save-actions"><button type="button" className="shipping-button" onClick={() => void load()} disabled={saving}><AdminIcon name="fa-rotate-left" /> Khôi phục</button><button type="button" className="shipping-button primary" onClick={() => void save()} disabled={saving}><AdminIcon name={saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'} /> {saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button></div>
       </div>
     </div>
   );
 }
 
-function ProviderCard({ provider, name, description, enabled, onChange, onTest, testing, result }: {
-  provider: ProviderKey;
-  name: string;
-  description: string;
-  enabled: boolean;
-  onChange: (value: boolean) => void;
-  onTest: () => void;
-  testing: boolean;
-  result?: ShippingTestResult;
-}) {
+function ProviderCard({ provider, name, description, enabled, onChange, onTest, testing, result }: { provider: ProviderKey; name: string; description: string; enabled: boolean; onChange: (value: boolean) => void; onTest: () => void; testing: boolean; result?: ShippingTestResult }) {
   const shortName = provider === 'mock' ? 'KK' : provider.toUpperCase();
-  return (
-    <article className={`shipping-provider-card ${enabled ? 'is-enabled' : ''}`}>
-      <div className="shipping-provider-head">
-        <span className={`shipping-provider-logo ${provider}`}>{shortName}</span>
-        <div className="shipping-provider-copy"><h3>{name}</h3><p>{description}</p></div>
-        <label className="shipping-switch" aria-label={`${enabled ? 'Tắt' : 'Bật'} ${name}`}>
-          <input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} />
-          <span />
-        </label>
-      </div>
-      <div className="shipping-provider-status"><i /><span>{enabled ? 'Đang được phép hiển thị ở checkout' : 'Đang tạm tắt'}</span></div>
-      <div className="shipping-provider-footer">
-        <span className={`shipping-test-result ${result?.ok ? 'ok' : result ? 'fail' : ''}`}>
-          {result ? <><AdminIcon name={result.ok ? 'fa-circle-check' : 'fa-circle-xmark'} /> {result.ok ? 'Kết nối tốt' : 'Kết nối lỗi'}</> : 'Chưa kiểm tra phiên này'}
-        </span>
-        <button type="button" className="shipping-button small" onClick={onTest} disabled={testing}>
-          <AdminIcon name={testing ? 'fa-spinner fa-spin' : 'fa-plug'} /> {testing ? 'Đang test' : 'Test API'}
-        </button>
-      </div>
-    </article>
-  );
+  return <article className={`shipping-provider-card ${enabled ? 'is-enabled' : ''}`}>
+    <div className="shipping-provider-head"><span className={`shipping-provider-logo ${provider}`}>{shortName}</span><div className="shipping-provider-copy"><h3>{name}</h3><p>{description}</p></div><label className="shipping-switch" aria-label={`${enabled ? 'Tắt' : 'Bật'} ${name}`}><input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} /><span /></label></div>
+    <div className="shipping-provider-status"><i /><span>{enabled ? 'Đang được phép hiển thị ở checkout' : 'Đang tạm tắt'}</span></div>
+    <div className="shipping-provider-footer"><span className={`shipping-test-result ${result?.ok ? 'ok' : result ? 'fail' : ''}`}>{result ? <><AdminIcon name={result.ok ? 'fa-circle-check' : 'fa-circle-xmark'} /> {result.ok ? 'Kết nối tốt' : 'Kết nối lỗi'}</> : 'Chưa kiểm tra phiên này'}</span><button type="button" className="shipping-button small" onClick={onTest} disabled={testing}><AdminIcon name={testing ? 'fa-spinner fa-spin' : 'fa-plug'} /> {testing ? 'Đang test' : 'Test API'}</button></div>
+  </article>;
 }
 
 function HistoryTab() {
@@ -522,18 +400,12 @@ function HistoryTab() {
   const load = useCallback(async () => {
     setLoading(true);
     const result = await adminShippingApi.getHistory(filter);
-    if (result.success && result.data) {
-      setItems(result.data.items);
-      setTotal(result.data.total);
-    } else {
-      toast.error(result.error || 'Không tải được lịch sử vận đơn');
-    }
+    if (result.success && result.data) { setItems(result.data.items); setTotal(result.data.total); }
+    else toast.error(result.error || 'Không tải được lịch sử vận đơn');
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const pageSummary = useMemo(() => ({
     delivering: items.filter((item) => ['picking', 'picked', 'delivering'].includes(item.status)).length,
@@ -542,86 +414,37 @@ function HistoryTab() {
     providers: new Set(items.map((item) => item.provider).filter(Boolean)).size,
   }), [items]);
 
-  const applySearch = () => {
-    setFilter((current) => ({ ...current, search: searchInput.trim(), page: 1 }));
-  };
-
-  const reset = () => {
-    setSearchInput('');
-    setFilter({ search: '', provider: '', status: '', page: 1, pageSize: 20 });
-  };
-
+  const applySearch = () => setFilter((current) => ({ ...current, search: searchInput.trim(), page: 1 }));
+  const reset = () => { setSearchInput(''); setFilter({ search: '', provider: '', status: '', page: 1, pageSize: 20 }); };
   const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
 
-  return (
-    <div className="shipping-content-stack">
-      <section className="shipping-history-summary" aria-label="Tóm tắt trang vận đơn hiện tại">
-        <article className="shipping-history-mini"><span>Tổng kết quả</span><strong>{total}</strong></article>
-        <article className="shipping-history-mini"><span>Đang vận chuyển / trang</span><strong>{pageSummary.delivering}</strong></article>
-        <article className="shipping-history-mini"><span>Đã giao / trang</span><strong>{pageSummary.delivered}</strong></article>
-        <article className="shipping-history-mini"><span>Đơn vị vận chuyển / trang</span><strong>{pageSummary.providers}</strong></article>
-      </section>
-
-      <Panel icon="fa-clock-rotate-left" title="Nhật ký vận đơn" description="Tra cứu hành trình theo mã đơn, mã vận đơn, khách hàng, nhà vận chuyển hoặc trạng thái." flush>
-        <div className="shipping-history-toolbar">
-          <div className="shipping-search-box">
-            <i className="fa fa-search" />
-            <input
-              className="shipping-input"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }}
-              placeholder="Mã đơn, mã vận đơn, SĐT..."
-            />
-          </div>
-          <select className="shipping-select" value={filter.provider} onChange={(event) => setFilter((current) => ({ ...current, provider: event.target.value, page: 1 }))}>
-            <option value="">Tất cả nhà vận chuyển</option><option value="mock">KaitoKid nội bộ</option><option value="ghn">GHN</option><option value="ghtk">GHTK</option>
-          </select>
-          <select className="shipping-select" value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value, page: 1 }))}>
-            <option value="">Tất cả trạng thái</option><option value="ready_to_pick">Chờ lấy hàng</option><option value="picking">Đang lấy hàng</option><option value="picked">Đã lấy hàng</option><option value="delivering">Đang giao</option><option value="delivered">Đã giao</option><option value="cancelled">Đã hủy</option>
-          </select>
-          <div className="shipping-panel-actions">
-            <button type="button" className="shipping-button small" onClick={reset} title="Xóa bộ lọc"><AdminIcon name="fa-rotate-left" /></button>
-            <button type="button" className="shipping-button primary small" onClick={applySearch}><AdminIcon name="fa-search" /> Tìm</button>
-          </div>
-        </div>
-
-        <div className="shipping-table-wrap">
-          <table className="shipping-history-table">
-            <thead><tr><th>Mã đơn</th><th>Mã vận đơn</th><th>Đơn vị</th><th>Khách hàng</th><th>Trạng thái</th><th>Diễn biến</th><th>Vị trí</th><th>Thời gian</th></tr></thead>
-            <tbody>
-              {!loading && items.map((item) => (
-                <tr key={item.id}>
-                  <td><span className="shipping-order-code">{item.orderCode}</span></td>
-                  <td>{item.trackingCode || '—'}</td>
-                  <td><span className="shipping-provider-chip"><i className="fa fa-truck" /> {PROVIDER_LABEL[item.provider || ''] || item.provider || '—'}</span></td>
-                  <td><div className="shipping-customer-cell"><strong>{item.customerName || 'Khách hàng'}</strong><span>{item.customerPhone || 'Chưa có SĐT'}</span></div></td>
-                  <td><span className={`shipping-status-badge ${item.status}`}>{STATUS_LABEL[item.status] || item.status}</span></td>
-                  <td>{item.description || '—'}</td>
-                  <td>{item.location || '—'}</td>
-                  <td>{formatDate(item.time)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <div className="shipping-table-empty"><span><AdminIcon name="fa-spinner fa-spin" /></span><strong>Đang tải lịch sử vận đơn</strong><p>Dữ liệu sẽ xuất hiện trong giây lát.</p></div>}
-          {!loading && items.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-route" /></span><strong>Chưa có vận đơn phù hợp</strong><p>Thử nới bộ lọc hoặc tìm bằng mã đơn khác.</p></div>}
-        </div>
-
-        <div className="shipping-pagination">
-          <span>Hiển thị {items.length} / {total} bản ghi · {pageSummary.cancelled} hủy trên trang này</span>
-          <div className="shipping-pagination-actions">
-            <button type="button" className="shipping-button small" disabled={filter.page <= 1} onClick={() => setFilter((current) => ({ ...current, page: Math.max(1, current.page - 1) }))}><AdminIcon name="fa-arrow-left" /> Trước</button>
-            <span>Trang {filter.page} / {totalPages}</span>
-            <button type="button" className="shipping-button small" disabled={filter.page >= totalPages} onClick={() => setFilter((current) => ({ ...current, page: Math.min(totalPages, current.page + 1) }))}>Sau <AdminIcon name="fa-arrow-right" /></button>
-          </div>
-        </div>
-      </Panel>
-    </div>
-  );
+  return <div className="shipping-content-stack">
+    <section className="shipping-history-summary" aria-label="Tóm tắt trang vận đơn hiện tại">
+      <article className="shipping-history-mini"><span>Tổng kết quả</span><strong>{total}</strong></article>
+      <article className="shipping-history-mini"><span>Đang vận chuyển / trang</span><strong>{pageSummary.delivering}</strong></article>
+      <article className="shipping-history-mini"><span>Đã giao / trang</span><strong>{pageSummary.delivered}</strong></article>
+      <article className="shipping-history-mini"><span>Đơn vị vận chuyển / trang</span><strong>{pageSummary.providers}</strong></article>
+    </section>
+    <Panel icon="fa-clock-rotate-left" title="Nhật ký vận đơn" description="Tra cứu hành trình theo mã đơn, mã vận đơn, khách hàng, nhà vận chuyển hoặc trạng thái." flush>
+      <div className="shipping-history-toolbar">
+        <div className="shipping-search-box"><i className="fa fa-search" /><input className="shipping-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }} placeholder="Mã đơn, mã vận đơn, SĐT..." /></div>
+        <select className="shipping-select" value={filter.provider} onChange={(event) => setFilter((current) => ({ ...current, provider: event.target.value, page: 1 }))}><option value="">Tất cả nhà vận chuyển</option><option value="mock">KaitoKid nội bộ</option><option value="ghn">GHN</option><option value="ghtk">GHTK</option></select>
+        <select className="shipping-select" value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value, page: 1 }))}><option value="">Tất cả trạng thái</option><option value="ready_to_pick">Chờ lấy hàng</option><option value="picking">Đang lấy hàng</option><option value="picked">Đã lấy hàng</option><option value="delivering">Đang giao</option><option value="delivered">Đã giao</option><option value="cancelled">Đã hủy</option></select>
+        <div className="shipping-panel-actions"><button type="button" className="shipping-button small" onClick={reset} title="Xóa bộ lọc"><AdminIcon name="fa-rotate-left" /></button><button type="button" className="shipping-button primary small" onClick={applySearch}><AdminIcon name="fa-search" /> Tìm</button></div>
+      </div>
+      <div className="shipping-table-wrap">
+        <table className="shipping-history-table"><thead><tr><th>Mã đơn</th><th>Mã vận đơn</th><th>Đơn vị</th><th>Khách hàng</th><th>Trạng thái</th><th>Diễn biến</th><th>Vị trí</th><th>Thời gian</th></tr></thead><tbody>{!loading && items.map((item) => <tr key={item.id}>
+          <td><span className="shipping-order-code">{item.orderCode}</span></td><td>{item.trackingCode || '—'}</td><td><span className="shipping-provider-chip"><i className="fa fa-truck" /> {PROVIDER_LABEL[item.provider || ''] || item.provider || '—'}</span></td><td><div className="shipping-customer-cell"><strong>{item.customerName || 'Khách hàng'}</strong><span>{item.customerPhone || 'Chưa có SĐT'}</span></div></td><td><span className={`shipping-status-badge ${item.status}`}>{STATUS_LABEL[item.status] || item.status}</span></td><td>{item.description || '—'}</td><td>{item.location || '—'}</td><td>{formatDate(item.time)}</td>
+        </tr>)}</tbody></table>
+        {loading && <div className="shipping-table-empty"><span><AdminIcon name="fa-spinner fa-spin" /></span><strong>Đang tải lịch sử vận đơn</strong><p>Dữ liệu sẽ xuất hiện trong giây lát.</p></div>}
+        {!loading && items.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-route" /></span><strong>Chưa có vận đơn phù hợp</strong><p>Thử nới bộ lọc hoặc tìm bằng mã đơn khác.</p></div>}
+      </div>
+      <div className="shipping-pagination"><span>Hiển thị {items.length} / {total} bản ghi · {pageSummary.cancelled} hủy trên trang này</span><div className="shipping-pagination-actions"><button type="button" className="shipping-button small" disabled={filter.page <= 1} onClick={() => setFilter((current) => ({ ...current, page: Math.max(1, current.page - 1) }))}><AdminIcon name="fa-arrow-left" /> Trước</button><span>Trang {filter.page} / {totalPages}</span><button type="button" className="shipping-button small" disabled={filter.page >= totalPages} onClick={() => setFilter((current) => ({ ...current, page: Math.min(totalPages, current.page + 1) }))}>Sau <AdminIcon name="fa-arrow-right" /></button></div></div>
+    </Panel>
+  </div>;
 }
 
-function OverviewTab({ onRefresh }: { onRefresh: () => void }) {
+function OverviewTab() {
   const [data, setData] = useState<AdminShippingOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -631,16 +454,11 @@ function OverviewTab({ onRefresh }: { onRefresh: () => void }) {
     if (result.success && result.data) setData(result.data);
     else toast.error(result.error || 'Không tải được tổng quan vận chuyển');
     setLoading(false);
-    onRefresh();
-  }, [onRefresh]);
+  }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  if (loading || !data) {
-    return <div className="shipping-loading-grid">{Array.from({ length: 3 }).map((_, index) => <div className="shipping-skeleton" key={index} />)}</div>;
-  }
+  if (loading || !data) return <div className="shipping-loading-grid">{Array.from({ length: 3 }).map((_, index) => <div className="shipping-skeleton" key={index} />)}</div>;
 
   const shippedRate = percent(data.totalShipped, data.totalOrders);
   const delivered = data.byStatus.find((item) => item.status === 'delivered')?.count || 0;
@@ -650,81 +468,21 @@ function OverviewTab({ onRefresh }: { onRefresh: () => void }) {
   const maxProvider = Math.max(1, ...data.byProvider.map((item) => item.count));
   const maxStatus = Math.max(1, ...data.byStatus.map((item) => item.count));
 
-  return (
-    <div className="shipping-content-stack">
-      <div className="shipping-overview-grid">
-        <article className="shipping-metric-banner">
-          <span className="shipping-overline"><AdminIcon name="fa-signal" /> Logistics health</span>
-          <h2>{shippedRate}% đơn đã có vận đơn</h2>
-          <p>Theo dõi độ phủ vận đơn và nhịp giao hàng để phát hiện sớm điểm nghẽn trong luồng xử lý đơn.</p>
-          <div className="shipping-banner-metrics">
-            <div><span>Tổng đơn</span><strong>{data.totalOrders}</strong></div>
-            <div><span>Đã có vận đơn</span><strong>{data.totalShipped}</strong></div>
-            <div><span>Đang vận chuyển</span><strong>{inTransit}</strong></div>
-          </div>
-        </article>
-
-        <div className="shipping-health-stack">
-          <article className="shipping-health-card"><span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span><div><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></div></article>
-          <article className="shipping-health-card"><span className="shipping-kpi-icon violet"><AdminIcon name="fa-truck-fast" /></span><div><span>Đang trên hành trình</span><strong>{inTransit} vận đơn</strong></div></article>
-          <article className="shipping-health-card"><span className="shipping-kpi-icon amber"><AdminIcon name="fa-triangle-exclamation" /></span><div><span>Đã hủy</span><strong>{cancelled} vận đơn</strong></div></article>
-        </div>
-      </div>
-
-      <div className="shipping-config-grid">
-        <Panel icon="fa-truck" title="Phân bổ nhà vận chuyển" description="Tỷ trọng vận đơn đang được phục vụ bởi từng kênh giao hàng.">
-          {data.byProvider.length > 0 ? (
-            <div className="shipping-distribution-list">
-              {data.byProvider.sort((a, b) => b.count - a.count).map((item) => (
-                <DistributionRow key={item.provider} label={PROVIDER_LABEL[item.provider] || item.provider} value={item.count} total={data.totalShipped} max={maxProvider} color={PROVIDER_COLORS[item.provider] || '#5b5bd6'} />
-              ))}
-            </div>
-          ) : <EmptyState icon="fa-truck" text="Chưa có dữ liệu nhà vận chuyển." />}
-        </Panel>
-
-        <Panel icon="fa-flag-checkered" title="Pipeline vận chuyển" description="Phân bổ vận đơn theo từng bước của hành trình giao hàng.">
-          {data.byStatus.length > 0 ? (
-            <div className="shipping-distribution-list">
-              {data.byStatus.sort((a, b) => b.count - a.count).map((item) => (
-                <DistributionRow key={item.status} label={STATUS_LABEL[item.status] || item.status} value={item.count} total={data.totalShipped} max={maxStatus} color={STATUS_COLORS[item.status] || '#64748b'} />
-              ))}
-            </div>
-          ) : <EmptyState icon="fa-route" text="Chưa có dữ liệu trạng thái vận chuyển." />}
-        </Panel>
-      </div>
-
-      <Panel icon="fa-lightbulb" title="Tín hiệu vận hành" description="Các chỉ số nhanh giúp ưu tiên việc cần kiểm tra trong ngày.">
-        <div className="shipping-history-summary">
-          <article className="shipping-history-mini"><span>Độ phủ vận đơn</span><strong>{shippedRate}%</strong></article>
-          <article className="shipping-history-mini"><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></article>
-          <article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{inTransit}</strong></article>
-          <article className="shipping-history-mini"><span>Cần theo dõi do hủy</span><strong>{cancelled}</strong></article>
-        </div>
-      </Panel>
+  return <div className="shipping-content-stack">
+    <div className="shipping-overview-grid">
+      <article className="shipping-metric-banner"><span className="shipping-overline"><AdminIcon name="fa-signal" /> Logistics health</span><h2>{shippedRate}% đơn đã có vận đơn</h2><p>Theo dõi độ phủ vận đơn và nhịp giao hàng để phát hiện sớm điểm nghẽn trong luồng xử lý đơn.</p><div className="shipping-banner-metrics"><div><span>Tổng đơn</span><strong>{data.totalOrders}</strong></div><div><span>Đã có vận đơn</span><strong>{data.totalShipped}</strong></div><div><span>Đang vận chuyển</span><strong>{inTransit}</strong></div></div></article>
+      <div className="shipping-health-stack"><article className="shipping-health-card"><span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span><div><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon violet"><AdminIcon name="fa-truck-fast" /></span><div><span>Đang trên hành trình</span><strong>{inTransit} vận đơn</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon amber"><AdminIcon name="fa-triangle-exclamation" /></span><div><span>Đã hủy</span><strong>{cancelled} vận đơn</strong></div></article></div>
     </div>
-  );
+    <div className="shipping-config-grid">
+      <Panel icon="fa-truck" title="Phân bổ nhà vận chuyển" description="Tỷ trọng vận đơn đang được phục vụ bởi từng kênh giao hàng.">{data.byProvider.length > 0 ? <div className="shipping-distribution-list">{[...data.byProvider].sort((a,b) => b.count-a.count).map((item) => <DistributionRow key={item.provider} label={PROVIDER_LABEL[item.provider] || item.provider} value={item.count} total={data.totalShipped} max={maxProvider} color={PROVIDER_COLORS[item.provider] || '#5b5bd6'} />)}</div> : <EmptyState icon="fa-truck" text="Chưa có dữ liệu nhà vận chuyển." />}</Panel>
+      <Panel icon="fa-flag-checkered" title="Pipeline vận chuyển" description="Phân bổ vận đơn theo từng bước của hành trình giao hàng.">{data.byStatus.length > 0 ? <div className="shipping-distribution-list">{[...data.byStatus].sort((a,b) => b.count-a.count).map((item) => <DistributionRow key={item.status} label={STATUS_LABEL[item.status] || item.status} value={item.count} total={data.totalShipped} max={maxStatus} color={STATUS_COLORS[item.status] || '#64748b'} />)}</div> : <EmptyState icon="fa-route" text="Chưa có dữ liệu trạng thái vận chuyển." />}</Panel>
+    </div>
+    <Panel icon="fa-lightbulb" title="Tín hiệu vận hành" description="Các chỉ số nhanh giúp ưu tiên việc cần kiểm tra trong ngày."><div className="shipping-history-summary"><article className="shipping-history-mini"><span>Độ phủ vận đơn</span><strong>{shippedRate}%</strong></article><article className="shipping-history-mini"><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></article><article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{inTransit}</strong></article><article className="shipping-history-mini"><span>Cần theo dõi do hủy</span><strong>{cancelled}</strong></article></div></Panel>
+  </div>;
 }
 
-function Panel({ icon, title, description, actions, children, flush = false }: {
-  icon: string;
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-  children: ReactNode;
-  flush?: boolean;
-}) {
-  return (
-    <section className="shipping-panel">
-      <header className="shipping-panel-header">
-        <div className="shipping-panel-title">
-          <span className="shipping-panel-icon"><AdminIcon name={icon} /></span>
-          <div><h2>{title}</h2>{description && <p>{description}</p>}</div>
-        </div>
-        {actions && <div className="shipping-panel-actions">{actions}</div>}
-      </header>
-      <div className={`shipping-panel-body ${flush ? 'flush' : ''}`}>{children}</div>
-    </section>
-  );
+function Panel({ icon, title, description, actions, children, flush = false }: { icon: string; title: string; description?: string; actions?: ReactNode; children: ReactNode; flush?: boolean }) {
+  return <section className="shipping-panel"><header className="shipping-panel-header"><div className="shipping-panel-title"><span className="shipping-panel-icon"><AdminIcon name={icon} /></span><div><h2>{title}</h2>{description && <p>{description}</p>}</div></div>{actions && <div className="shipping-panel-actions">{actions}</div>}</header><div className={`shipping-panel-body ${flush ? 'flush' : ''}`}>{children}</div></section>;
 }
 
 function Field({ label, hint, children, full = false }: { label: string; hint?: string; children: ReactNode; full?: boolean }) {
@@ -734,13 +492,7 @@ function Field({ label, hint, children, full = false }: { label: string; hint?: 
 function DistributionRow({ label, value, total, max, color }: { label: string; value: number; total: number; max: number; color: string }) {
   const share = percent(value, total);
   const visualWidth = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0;
-  return (
-    <div className="shipping-distribution-row">
-      <div className="shipping-distribution-label"><i style={{ background: color }} /><span>{label}</span></div>
-      <div className="shipping-progress-track"><span style={{ width: `${visualWidth}%`, background: color }} /></div>
-      <div className="shipping-distribution-value"><strong>{value}</strong> · {share}%</div>
-    </div>
-  );
+  return <div className="shipping-distribution-row"><div className="shipping-distribution-label"><i style={{ background: color }} /><span>{label}</span></div><div className="shipping-progress-track"><span style={{ width: `${visualWidth}%`, background: color }} /></div><div className="shipping-distribution-value"><strong>{value}</strong> · {share}%</div></div>;
 }
 
 function EmptyState({ icon, text }: { icon: string; text: string }) {
