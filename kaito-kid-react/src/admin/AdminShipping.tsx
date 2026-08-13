@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 
 import AdminIcon from '../components/admin/AdminIcon';
@@ -14,18 +21,39 @@ import {
 } from '../services/api';
 import { formatDate } from '../utils/format';
 import '../styles/admin/admin-shipping.css';
+import '../styles/admin/admin-shipping-history.css';
 
 type TabKey = 'overview' | 'history' | 'config';
 type ProviderKey = 'mock' | 'ghn' | 'ghtk';
 
+interface ShippingOrderGroup {
+  orderId: number;
+  orderCode: string;
+  trackingCode?: string;
+  provider?: string;
+  customerName: string;
+  customerPhone: string;
+  total: number;
+  orderStatus: string;
+  latestStatus: string;
+  latestDescription?: string;
+  latestLocation?: string;
+  latestTime: string;
+  events: AdminShippingHistoryItem[];
+}
+
 const STATUS_LABEL: Record<string, string> = {
+  pending: 'Chờ xử lý',
+  payment_confirmed: 'Đã xác nhận thanh toán',
+  order_placed: 'Đã đặt hàng',
   ready_to_pick: 'Chờ lấy hàng',
   picking: 'Đang lấy hàng',
   picked: 'Đã lấy hàng',
   delivering: 'Đang giao',
+  shipping: 'Đang giao',
   delivered: 'Đã giao',
+  completed: 'Hoàn thành',
   cancelled: 'Đã hủy',
-  order_placed: 'Đã đặt hàng',
 };
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -52,6 +80,44 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 function percent(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function timestamp(value?: string) {
+  const parsed = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function groupShippingEvents(items: AdminShippingHistoryItem[]): ShippingOrderGroup[] {
+  const groups = new Map<string, AdminShippingHistoryItem[]>();
+
+  items.forEach((item) => {
+    const key = item.orderCode || String(item.orderId);
+    const current = groups.get(key) || [];
+    current.push(item);
+    groups.set(key, current);
+  });
+
+  return Array.from(groups.values())
+    .map((events) => {
+      const sorted = [...events].sort((a, b) => timestamp(b.time) - timestamp(a.time));
+      const latest = sorted[0];
+      return {
+        orderId: latest.orderId,
+        orderCode: latest.orderCode,
+        trackingCode: sorted.find((item) => item.trackingCode)?.trackingCode,
+        provider: sorted.find((item) => item.provider)?.provider,
+        customerName: latest.customerName || 'Khách hàng',
+        customerPhone: latest.customerPhone || '',
+        total: latest.total || 0,
+        orderStatus: latest.orderStatus,
+        latestStatus: latest.status,
+        latestDescription: latest.description,
+        latestLocation: latest.location,
+        latestTime: latest.time,
+        events: sorted,
+      } satisfies ShippingOrderGroup;
+    })
+    .sort((a, b) => timestamp(b.latestTime) - timestamp(a.latestTime));
 }
 
 export default function AdminShipping() {
@@ -176,17 +242,12 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
   const load = useCallback(async () => {
     setLoading(true);
     const result = await adminShippingApi.getConfig();
-    if (result.success && result.data) {
-      setConfig(result.data);
-    } else {
-      toast.error(result.error || 'Không tải được cấu hình vận chuyển');
-    }
+    if (result.success && result.data) setConfig(result.data);
+    else toast.error(result.error || 'Không tải được cấu hình vận chuyển');
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const update = (patch: Partial<AdminShippingConfig>) => {
     setConfig((current) => current ? { ...current, ...patch } : current);
@@ -253,8 +314,8 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
     setLookupOpen(true);
     if (provinces.length > 0) return;
     const result = await adminShippingApi.ghnProvinces();
-    const items = result.data?.data;
-    if (result.success && Array.isArray(items)) setProvinces(items);
+    const provinceItems = result.data?.data;
+    if (result.success && Array.isArray(provinceItems)) setProvinces(provinceItems);
     else toast.error(result.error || 'Không tải được danh sách tỉnh GHN');
   };
 
@@ -266,8 +327,8 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
     setDistrictLoading(true);
     const result = await adminShippingApi.ghnDistricts(provinceId);
     setDistrictLoading(false);
-    const items = result.data?.data;
-    if (result.success && Array.isArray(items)) setDistricts(items);
+    const districtItems = result.data?.data;
+    if (result.success && Array.isArray(districtItems)) setDistricts(districtItems);
     else toast.error(result.error || 'Không tải được danh sách quận GHN');
   };
 
@@ -317,10 +378,18 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
           </div>
           <div className="shipping-lookup-box">
             <button type="button" className="shipping-button small" onClick={() => void toggleLookup()}><AdminIcon name="fa-location-dot" /> {lookupOpen ? 'Đóng tra cứu District ID' : 'Tra cứu District ID GHN'}</button>
-            {lookupOpen && <div className="shipping-lookup-grid">
-              <select className="shipping-select" defaultValue="" onChange={(event) => void loadDistricts(Number(event.target.value))}><option value="">Chọn tỉnh / thành</option>{provinces.map((province) => <option key={province.ProvinceID} value={province.ProvinceID}>{province.ProvinceName}</option>)}</select>
-              <select className="shipping-select" defaultValue="" disabled={districtLoading || districts.length === 0} onChange={(event) => void chooseDistrict(Number(event.target.value))}><option value="">{districtLoading ? 'Đang tải quận / huyện...' : 'Chọn quận / huyện để copy ID'}</option>{districts.map((district) => <option key={district.DistrictID} value={district.DistrictID}>{district.DistrictName} · ID {district.DistrictID}</option>)}</select>
-            </div>}
+            {lookupOpen && (
+              <div className="shipping-lookup-grid">
+                <select className="shipping-select" defaultValue="" onChange={(event) => void loadDistricts(Number(event.target.value))}>
+                  <option value="">Chọn tỉnh / thành</option>
+                  {provinces.map((province) => <option key={province.ProvinceID} value={province.ProvinceID}>{province.ProvinceName}</option>)}
+                </select>
+                <select className="shipping-select" defaultValue="" disabled={districtLoading || districts.length === 0} onChange={(event) => void chooseDistrict(Number(event.target.value))}>
+                  <option value="">{districtLoading ? 'Đang tải quận / huyện...' : 'Chọn quận / huyện để copy ID'}</option>
+                  {districts.map((district) => <option key={district.DistrictID} value={district.DistrictID}>{district.DistrictName} · ID {district.DistrictID}</option>)}
+                </select>
+              </div>
+            )}
             {lookupOpen && <div className="shipping-lookup-note">Chọn quận/huyện sẽ tự copy District ID vào clipboard để bạn dán vào trường tương ứng.</div>}
           </div>
         </Panel>
@@ -332,7 +401,10 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
             <Field label="Tỉnh lấy hàng"><input className="shipping-input" value={config.ghtkPickProvince || ''} onChange={(event) => update({ ghtkPickProvince: event.target.value })} placeholder="Hà Nội" /></Field>
             <Field label="Quận / huyện lấy hàng"><input className="shipping-input" value={config.ghtkPickDistrict || ''} onChange={(event) => update({ ghtkPickDistrict: event.target.value })} placeholder="Cầu Giấy" /></Field>
           </div>
-          <div className="shipping-lookup-box"><span className="shipping-overline"><AdminIcon name="fa-circle-info" /> Lưu ý cấu hình</span><div className="shipping-lookup-note">Dùng token sandbox/production đúng với Base URL. Có thể kiểm tra ngay bằng nút Test trên thẻ nhà vận chuyển phía trên.</div></div>
+          <div className="shipping-lookup-box">
+            <span className="shipping-overline"><AdminIcon name="fa-circle-info" /> Lưu ý cấu hình</span>
+            <div className="shipping-lookup-note">Dùng token sandbox/production đúng với Base URL. Có thể kiểm tra ngay bằng nút Test trên thẻ nhà vận chuyển phía trên.</div>
+          </div>
         </Panel>
       </div>
 
@@ -350,15 +422,19 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
         <div className="shipping-table-wrap">
           <table className="shipping-branch-table">
             <thead><tr><th>Mã</th><th>Tên cơ sở</th><th>Tỉnh / thành</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Trạng thái</th><th /></tr></thead>
-            <tbody>{branches.map((branch, index) => <tr key={`${branch.code}-${index}`} className={branch.active ? '' : 'is-disabled'}>
-              <td><input className="shipping-input" value={branch.code} onChange={(event) => updateBranch(index, { code: event.target.value })} placeholder="HN" /></td>
-              <td><input className="shipping-input" value={branch.name} onChange={(event) => updateBranch(index, { name: event.target.value })} placeholder="KaitoKid Hà Nội" /></td>
-              <td><input className="shipping-input" value={branch.province} onChange={(event) => updateBranch(index, { province: event.target.value })} placeholder="Hà Nội" /></td>
-              <td><input className="shipping-input" value={branch.address || ''} onChange={(event) => updateBranch(index, { address: event.target.value })} placeholder="Địa chỉ chi tiết" /></td>
-              <td><input className="shipping-input" value={branch.phone || ''} onChange={(event) => updateBranch(index, { phone: event.target.value })} placeholder="09xxxxxxxx" /></td>
-              <td><label className="shipping-switch" title={branch.active ? 'Đang hoạt động' : 'Đang tắt'}><input type="checkbox" checked={branch.active} onChange={(event) => updateBranch(index, { active: event.target.checked })} /><span /></label></td>
-              <td><div className="shipping-branch-actions"><button type="button" className="shipping-icon-button danger" onClick={() => removeBranch(index)} aria-label={`Xóa cơ sở ${branch.name || index + 1}`}><AdminIcon name="fa-trash" /></button></div></td>
-            </tr>)}</tbody>
+            <tbody>
+              {branches.map((branch, index) => (
+                <tr key={`${branch.code}-${index}`} className={branch.active ? '' : 'is-disabled'}>
+                  <td><input className="shipping-input" value={branch.code} onChange={(event) => updateBranch(index, { code: event.target.value })} placeholder="HN" /></td>
+                  <td><input className="shipping-input" value={branch.name} onChange={(event) => updateBranch(index, { name: event.target.value })} placeholder="KaitoKid Hà Nội" /></td>
+                  <td><input className="shipping-input" value={branch.province} onChange={(event) => updateBranch(index, { province: event.target.value })} placeholder="Hà Nội" /></td>
+                  <td><input className="shipping-input" value={branch.address || ''} onChange={(event) => updateBranch(index, { address: event.target.value })} placeholder="Địa chỉ chi tiết" /></td>
+                  <td><input className="shipping-input" value={branch.phone || ''} onChange={(event) => updateBranch(index, { phone: event.target.value })} placeholder="09xxxxxxxx" /></td>
+                  <td><label className="shipping-switch" title={branch.active ? 'Đang hoạt động' : 'Đang tắt'}><input type="checkbox" checked={branch.active} onChange={(event) => updateBranch(index, { active: event.target.checked })} /><span /></label></td>
+                  <td><div className="shipping-branch-actions"><button type="button" className="shipping-icon-button danger" onClick={() => removeBranch(index)} aria-label={`Xóa cơ sở ${branch.name || index + 1}`}><AdminIcon name="fa-trash" /></button></div></td>
+                </tr>
+              ))}
+            </tbody>
           </table>
           {branches.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-store" /></span><strong>Chưa có cơ sở nội bộ</strong><p>Thêm cơ sở để mở vùng giao KaitoKid tại tỉnh/thành tương ứng.</p></div>}
         </div>
@@ -381,67 +457,236 @@ function ConfigTab({ onChanged }: { onChanged: () => void }) {
   );
 }
 
-function ProviderCard({ provider, name, description, enabled, onChange, onTest, testing, result }: { provider: ProviderKey; name: string; description: string; enabled: boolean; onChange: (value: boolean) => void; onTest: () => void; testing: boolean; result?: ShippingTestResult }) {
+function ProviderCard({ provider, name, description, enabled, onChange, onTest, testing, result }: {
+  provider: ProviderKey;
+  name: string;
+  description: string;
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+  onTest: () => void;
+  testing: boolean;
+  result?: ShippingTestResult;
+}) {
   const shortName = provider === 'mock' ? 'KK' : provider.toUpperCase();
-  return <article className={`shipping-provider-card ${enabled ? 'is-enabled' : ''}`}>
-    <div className="shipping-provider-head"><span className={`shipping-provider-logo ${provider}`}>{shortName}</span><div className="shipping-provider-copy"><h3>{name}</h3><p>{description}</p></div><label className="shipping-switch" aria-label={`${enabled ? 'Tắt' : 'Bật'} ${name}`}><input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} /><span /></label></div>
-    <div className="shipping-provider-status"><i /><span>{enabled ? 'Đang được phép hiển thị ở checkout' : 'Đang tạm tắt'}</span></div>
-    <div className="shipping-provider-footer"><span className={`shipping-test-result ${result?.ok ? 'ok' : result ? 'fail' : ''}`}>{result ? <><AdminIcon name={result.ok ? 'fa-circle-check' : 'fa-circle-xmark'} /> {result.ok ? 'Kết nối tốt' : 'Kết nối lỗi'}</> : 'Chưa kiểm tra phiên này'}</span><button type="button" className="shipping-button small" onClick={onTest} disabled={testing}><AdminIcon name={testing ? 'fa-spinner fa-spin' : 'fa-plug'} /> {testing ? 'Đang test' : 'Test API'}</button></div>
-  </article>;
+  return (
+    <article className={`shipping-provider-card ${enabled ? 'is-enabled' : ''}`}>
+      <div className="shipping-provider-head"><span className={`shipping-provider-logo ${provider}`}>{shortName}</span><div className="shipping-provider-copy"><h3>{name}</h3><p>{description}</p></div><label className="shipping-switch" aria-label={`${enabled ? 'Tắt' : 'Bật'} ${name}`}><input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} /><span /></label></div>
+      <div className="shipping-provider-status"><i /><span>{enabled ? 'Đang được phép hiển thị ở checkout' : 'Đang tạm tắt'}</span></div>
+      <div className="shipping-provider-footer"><span className={`shipping-test-result ${result?.ok ? 'ok' : result ? 'fail' : ''}`}>{result ? <><AdminIcon name={result.ok ? 'fa-circle-check' : 'fa-circle-xmark'} /> {result.ok ? 'Kết nối tốt' : 'Kết nối lỗi'}</> : 'Chưa kiểm tra phiên này'}</span><button type="button" className="shipping-button small" onClick={onTest} disabled={testing}><AdminIcon name={testing ? 'fa-spinner fa-spin' : 'fa-plug'} /> {testing ? 'Đang test' : 'Test API'}</button></div>
+    </article>
+  );
 }
 
 function HistoryTab() {
-  const [items, setItems] = useState<AdminShippingHistoryItem[]>([]);
-  const [total, setTotal] = useState(0);
+  const [events, setEvents] = useState<AdminShippingHistoryItem[]>([]);
+  const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
-  const [filter, setFilter] = useState({ search: '', provider: '', status: '', page: 1, pageSize: 20 });
+  const [query, setQuery] = useState({ search: '', provider: '', status: '' });
+  const [page, setPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<ShippingOrderGroup | null>(null);
+  const [drawerEvents, setDrawerEvents] = useState<AdminShippingHistoryItem[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const ordersPerPage = 10;
 
   const load = useCallback(async () => {
     setLoading(true);
-    const result = await adminShippingApi.getHistory(filter);
-    if (result.success && result.data) { setItems(result.data.items); setTotal(result.data.total); }
-    else toast.error(result.error || 'Không tải được lịch sử vận đơn');
+    const result = await adminShippingApi.getHistory({
+      search: query.search,
+      provider: query.provider,
+      page: 1,
+      pageSize: 500,
+    });
+    if (result.success && result.data) {
+      setEvents(result.data.items);
+      setTotalEvents(result.data.total);
+    } else {
+      toast.error(result.error || 'Không tải được lịch sử vận đơn');
+    }
     setLoading(false);
-  }, [filter]);
+  }, [query.provider, query.search]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const pageSummary = useMemo(() => ({
-    delivering: items.filter((item) => ['picking', 'picked', 'delivering'].includes(item.status)).length,
-    delivered: items.filter((item) => item.status === 'delivered').length,
-    cancelled: items.filter((item) => item.status === 'cancelled').length,
-    providers: new Set(items.map((item) => item.provider).filter(Boolean)).size,
-  }), [items]);
+  useEffect(() => {
+    if (!selectedOrder) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedOrder(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [selectedOrder]);
 
-  const applySearch = () => setFilter((current) => ({ ...current, search: searchInput.trim(), page: 1 }));
-  const reset = () => { setSearchInput(''); setFilter({ search: '', provider: '', status: '', page: 1, pageSize: 20 }); };
-  const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
+  const groupedOrders = useMemo(() => {
+    const groups = groupShippingEvents(events);
+    if (!query.status) return groups;
+    return groups.filter((order) => order.latestStatus === query.status || order.orderStatus === query.status);
+  }, [events, query.status]);
 
-  return <div className="shipping-content-stack">
-    <section className="shipping-history-summary" aria-label="Tóm tắt trang vận đơn hiện tại">
-      <article className="shipping-history-mini"><span>Tổng kết quả</span><strong>{total}</strong></article>
-      <article className="shipping-history-mini"><span>Đang vận chuyển / trang</span><strong>{pageSummary.delivering}</strong></article>
-      <article className="shipping-history-mini"><span>Đã giao / trang</span><strong>{pageSummary.delivered}</strong></article>
-      <article className="shipping-history-mini"><span>Đơn vị vận chuyển / trang</span><strong>{pageSummary.providers}</strong></article>
-    </section>
-    <Panel icon="fa-clock-rotate-left" title="Nhật ký vận đơn" description="Tra cứu hành trình theo mã đơn, mã vận đơn, khách hàng, nhà vận chuyển hoặc trạng thái." flush>
-      <div className="shipping-history-toolbar">
-        <div className="shipping-search-box"><i className="fa fa-search" /><input className="shipping-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }} placeholder="Mã đơn, mã vận đơn, SĐT..." /></div>
-        <select className="shipping-select" value={filter.provider} onChange={(event) => setFilter((current) => ({ ...current, provider: event.target.value, page: 1 }))}><option value="">Tất cả nhà vận chuyển</option><option value="mock">KaitoKid nội bộ</option><option value="ghn">GHN</option><option value="ghtk">GHTK</option></select>
-        <select className="shipping-select" value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value, page: 1 }))}><option value="">Tất cả trạng thái</option><option value="ready_to_pick">Chờ lấy hàng</option><option value="picking">Đang lấy hàng</option><option value="picked">Đã lấy hàng</option><option value="delivering">Đang giao</option><option value="delivered">Đã giao</option><option value="cancelled">Đã hủy</option></select>
-        <div className="shipping-panel-actions"><button type="button" className="shipping-button small" onClick={reset} title="Xóa bộ lọc"><AdminIcon name="fa-rotate-left" /></button><button type="button" className="shipping-button primary small" onClick={applySearch}><AdminIcon name="fa-search" /> Tìm</button></div>
-      </div>
-      <div className="shipping-table-wrap">
-        <table className="shipping-history-table"><thead><tr><th>Mã đơn</th><th>Mã vận đơn</th><th>Đơn vị</th><th>Khách hàng</th><th>Trạng thái</th><th>Diễn biến</th><th>Vị trí</th><th>Thời gian</th></tr></thead><tbody>{!loading && items.map((item) => <tr key={item.id}>
-          <td><span className="shipping-order-code">{item.orderCode}</span></td><td>{item.trackingCode || '—'}</td><td><span className="shipping-provider-chip"><i className="fa fa-truck" /> {PROVIDER_LABEL[item.provider || ''] || item.provider || '—'}</span></td><td><div className="shipping-customer-cell"><strong>{item.customerName || 'Khách hàng'}</strong><span>{item.customerPhone || 'Chưa có SĐT'}</span></div></td><td><span className={`shipping-status-badge ${item.status}`}>{STATUS_LABEL[item.status] || item.status}</span></td><td>{item.description || '—'}</td><td>{item.location || '—'}</td><td>{formatDate(item.time)}</td>
-        </tr>)}</tbody></table>
-        {loading && <div className="shipping-table-empty"><span><AdminIcon name="fa-spinner fa-spin" /></span><strong>Đang tải lịch sử vận đơn</strong><p>Dữ liệu sẽ xuất hiện trong giây lát.</p></div>}
-        {!loading && items.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-route" /></span><strong>Chưa có vận đơn phù hợp</strong><p>Thử nới bộ lọc hoặc tìm bằng mã đơn khác.</p></div>}
-      </div>
-      <div className="shipping-pagination"><span>Hiển thị {items.length} / {total} bản ghi · {pageSummary.cancelled} hủy trên trang này</span><div className="shipping-pagination-actions"><button type="button" className="shipping-button small" disabled={filter.page <= 1} onClick={() => setFilter((current) => ({ ...current, page: Math.max(1, current.page - 1) }))}><AdminIcon name="fa-arrow-left" /> Trước</button><span>Trang {filter.page} / {totalPages}</span><button type="button" className="shipping-button small" disabled={filter.page >= totalPages} onClick={() => setFilter((current) => ({ ...current, page: Math.min(totalPages, current.page + 1) }))}>Sau <AdminIcon name="fa-arrow-right" /></button></div></div>
-    </Panel>
-  </div>;
+  const totalPages = Math.max(1, Math.ceil(groupedOrders.length / ordersPerPage));
+  const currentPage = Math.min(page, totalPages);
+  const visibleOrders = groupedOrders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+
+  const summary = useMemo(() => ({
+    total: groupedOrders.length,
+    delivering: groupedOrders.filter((order) => ['ready_to_pick', 'picking', 'picked', 'delivering', 'shipping'].includes(order.latestStatus)).length,
+    delivered: groupedOrders.filter((order) => ['delivered', 'completed'].includes(order.latestStatus) || order.orderStatus === 'completed').length,
+    providers: new Set(groupedOrders.map((order) => order.provider).filter(Boolean)).size,
+  }), [groupedOrders]);
+
+  const applySearch = () => {
+    setPage(1);
+    setQuery((current) => ({ ...current, search: searchInput.trim() }));
+  };
+
+  const reset = () => {
+    setSearchInput('');
+    setPage(1);
+    setQuery({ search: '', provider: '', status: '' });
+  };
+
+  const openOrder = async (order: ShippingOrderGroup) => {
+    setSelectedOrder(order);
+    setDrawerEvents([...order.events].sort((a, b) => timestamp(a.time) - timestamp(b.time)));
+    setDrawerLoading(true);
+
+    const result = await adminShippingApi.getHistory({
+      search: order.orderCode,
+      page: 1,
+      pageSize: 100,
+    });
+
+    if (result.success && result.data) {
+      const exactEvents = result.data.items
+        .filter((item) => item.orderCode === order.orderCode)
+        .sort((a, b) => timestamp(a.time) - timestamp(b.time));
+      if (exactEvents.length > 0) setDrawerEvents(exactEvents);
+    }
+    setDrawerLoading(false);
+  };
+
+  return (
+    <div className="shipping-content-stack">
+      <section className="shipping-order-history-summary" aria-label="Tóm tắt đơn vận chuyển">
+        <article className="shipping-history-mini"><span>Đơn phù hợp</span><strong>{summary.total}</strong></article>
+        <article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{summary.delivering}</strong></article>
+        <article className="shipping-history-mini"><span>Đã giao / hoàn thành</span><strong>{summary.delivered}</strong></article>
+        <article className="shipping-history-mini"><span>Nhà vận chuyển</span><strong>{summary.providers}</strong></article>
+      </section>
+
+      <Panel icon="fa-clock-rotate-left" title="Lịch sử theo đơn hàng" description="Mỗi đơn chỉ xuất hiện một dòng. Bấm vào đơn để xem toàn bộ timeline vận chuyển." flush>
+        <div className="shipping-history-toolbar">
+          <div className="shipping-search-box"><AdminIcon name="fa-search" /><input className="shipping-input" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }} placeholder="Mã đơn, mã vận đơn, SĐT..." /></div>
+          <select className="shipping-select" value={query.provider} onChange={(event) => { setPage(1); setQuery((current) => ({ ...current, provider: event.target.value })); }}><option value="">Tất cả nhà vận chuyển</option><option value="mock">KaitoKid nội bộ</option><option value="ghn">GHN</option><option value="ghtk">GHTK</option></select>
+          <select className="shipping-select" value={query.status} onChange={(event) => { setPage(1); setQuery((current) => ({ ...current, status: event.target.value })); }}><option value="">Trạng thái mới nhất</option><option value="ready_to_pick">Chờ lấy hàng</option><option value="picking">Đang lấy hàng</option><option value="picked">Đã lấy hàng</option><option value="delivering">Đang giao</option><option value="delivered">Đã giao</option><option value="cancelled">Đã hủy</option></select>
+          <div className="shipping-panel-actions"><button type="button" className="shipping-button small" onClick={reset} title="Xóa bộ lọc"><AdminIcon name="fa-rotate-left" /></button><button type="button" className="shipping-button primary small" onClick={applySearch}><AdminIcon name="fa-search" /> Tìm</button></div>
+        </div>
+
+        <div className="shipping-order-list-note"><AdminIcon name="fa-circle-info" /><span>Đã gom <strong>{totalEvents}</strong> sự kiện thành <strong>{groupedOrders.length}</strong> đơn hàng. Timeline chi tiết vẫn được giữ đầy đủ.</span></div>
+
+        <div className="shipping-table-wrap">
+          <table className="shipping-order-table">
+            <thead><tr><th>Đơn hàng</th><th>Khách hàng</th><th>Đơn vị</th><th>Trạng thái mới nhất</th><th>Cập nhật gần nhất</th><th>Hành trình</th><th /></tr></thead>
+            <tbody>
+              {!loading && visibleOrders.map((order) => (
+                <tr key={order.orderCode} onClick={() => void openOrder(order)}>
+                  <td><div className="shipping-order-main"><strong>{order.orderCode}</strong><span>{order.trackingCode || 'Chưa có mã vận đơn'}</span></div></td>
+                  <td><div className="shipping-customer-cell"><strong>{order.customerName}</strong><span>{order.customerPhone || 'Chưa có SĐT'}</span></div></td>
+                  <td><span className="shipping-provider-chip"><AdminIcon name="fa-truck" /> {PROVIDER_LABEL[order.provider || ''] || order.provider || '—'}</span></td>
+                  <td><span className={`shipping-status-badge ${order.latestStatus}`}>{STATUS_LABEL[order.latestStatus] || order.latestStatus}</span></td>
+                  <td><div className="shipping-order-update"><strong>{order.latestDescription || 'Có cập nhật vận chuyển'}</strong><span>{order.latestLocation ? `${order.latestLocation} · ` : ''}{formatDate(order.latestTime)}</span></div></td>
+                  <td><span className="shipping-milestone-count"><AdminIcon name="fa-route" /> {order.events.length} mốc</span></td>
+                  <td><button type="button" className="shipping-detail-trigger" onClick={(event) => { event.stopPropagation(); void openOrder(order); }} aria-label={`Xem hành trình ${order.orderCode}`}><AdminIcon name="fa-chevron-right" /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {loading && <div className="shipping-table-empty"><span><AdminIcon name="fa-spinner fa-spin" /></span><strong>Đang gom lịch sử theo đơn hàng</strong><p>Hệ thống đang tổng hợp các event thành từng hành trình.</p></div>}
+          {!loading && groupedOrders.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-route" /></span><strong>Chưa có đơn phù hợp</strong><p>Thử nới bộ lọc hoặc tìm bằng mã đơn khác.</p></div>}
+        </div>
+
+        <div className="shipping-pagination">
+          <span>Hiển thị {visibleOrders.length} / {groupedOrders.length} đơn · {totalEvents} sự kiện vận chuyển</span>
+          <div className="shipping-pagination-actions"><button type="button" className="shipping-button small" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><AdminIcon name="fa-arrow-left" /> Trước</button><span>Trang {currentPage} / {totalPages}</span><button type="button" className="shipping-button small" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Sau <AdminIcon name="fa-arrow-right" /></button></div>
+        </div>
+      </Panel>
+
+      {selectedOrder && (
+        <ShippingHistoryDrawer
+          order={selectedOrder}
+          events={drawerEvents}
+          loading={drawerLoading}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShippingHistoryDrawer({ order, events, loading, onClose }: {
+  order: ShippingOrderGroup;
+  events: AdminShippingHistoryItem[];
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const latest = events.length > 0 ? events[events.length - 1] : order.events[0];
+
+  return createPortal(
+    <div className="shipping-history-drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <aside className="shipping-history-drawer" role="dialog" aria-modal="true" aria-labelledby="shipping-history-title">
+        <header className="shipping-history-drawer-header">
+          <div className="shipping-history-drawer-heading">
+            <span>Hành trình vận chuyển</span>
+            <h2 id="shipping-history-title">{order.orderCode}</h2>
+            <p>{order.trackingCode || 'Chưa có mã vận đơn'} · {PROVIDER_LABEL[order.provider || ''] || order.provider || 'Chưa chọn đơn vị'}</p>
+          </div>
+          <button type="button" className="shipping-history-drawer-close" onClick={onClose} aria-label="Đóng chi tiết vận đơn"><AdminIcon name="fa-xmark" /></button>
+        </header>
+
+        <div className="shipping-history-drawer-body">
+          <div className="shipping-history-order-card">
+            <div><span>Khách hàng</span><strong>{order.customerName}</strong></div>
+            <div><span>Số điện thoại</span><strong>{order.customerPhone || 'Chưa có'}</strong></div>
+            <div><span>Trạng thái mới nhất</span><strong>{STATUS_LABEL[latest?.status || order.latestStatus] || latest?.status || order.latestStatus}</strong></div>
+            <div><span>Số mốc hành trình</span><strong>{events.length || order.events.length} cập nhật</strong></div>
+          </div>
+
+          <section className="shipping-history-timeline-section">
+            <div className="shipping-history-timeline-title"><h3>Timeline chi tiết</h3><span>Cũ → mới</span></div>
+            {loading && events.length === 0 ? (
+              <div className="shipping-history-drawer-loading"><i /><i /><i /></div>
+            ) : (
+              <div className="shipping-history-timeline">
+                {events.map((item, index) => {
+                  const isLatest = index === events.length - 1;
+                  const dotTone = item.status === 'cancelled' ? 'danger' : ['delivered', 'completed'].includes(item.status) ? 'success' : isLatest ? 'latest' : '';
+                  return (
+                    <article className="shipping-history-timeline-item" key={`${item.id}-${index}`}>
+                      <span className={`shipping-history-timeline-dot ${dotTone}`}><AdminIcon name={item.status === 'cancelled' ? 'fa-xmark' : ['delivered', 'completed'].includes(item.status) ? 'fa-check' : 'fa-circle'} /></span>
+                      <div className="shipping-history-timeline-copy">
+                        <header><strong>{STATUS_LABEL[item.status] || item.status}</strong><time>{formatDate(item.time)}</time></header>
+                        <p>{item.description || 'Cập nhật trạng thái vận chuyển.'}</p>
+                        <div className="shipping-history-timeline-meta">
+                          {item.location && <span><AdminIcon name="fa-location-dot" /> {item.location}</span>}
+                          {item.provider && <span><AdminIcon name="fa-truck" /> {PROVIDER_LABEL[item.provider] || item.provider}</span>}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </aside>
+    </div>,
+    document.body,
+  );
 }
 
 function OverviewTab() {
@@ -468,20 +713,29 @@ function OverviewTab() {
   const maxProvider = Math.max(1, ...data.byProvider.map((item) => item.count));
   const maxStatus = Math.max(1, ...data.byStatus.map((item) => item.count));
 
-  return <div className="shipping-content-stack">
-    <div className="shipping-overview-grid">
-      <article className="shipping-metric-banner"><span className="shipping-overline"><AdminIcon name="fa-signal" /> Logistics health</span><h2>{shippedRate}% đơn đã có vận đơn</h2><p>Theo dõi độ phủ vận đơn và nhịp giao hàng để phát hiện sớm điểm nghẽn trong luồng xử lý đơn.</p><div className="shipping-banner-metrics"><div><span>Tổng đơn</span><strong>{data.totalOrders}</strong></div><div><span>Đã có vận đơn</span><strong>{data.totalShipped}</strong></div><div><span>Đang vận chuyển</span><strong>{inTransit}</strong></div></div></article>
-      <div className="shipping-health-stack"><article className="shipping-health-card"><span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span><div><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon violet"><AdminIcon name="fa-truck-fast" /></span><div><span>Đang trên hành trình</span><strong>{inTransit} vận đơn</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon amber"><AdminIcon name="fa-triangle-exclamation" /></span><div><span>Đã hủy</span><strong>{cancelled} vận đơn</strong></div></article></div>
+  return (
+    <div className="shipping-content-stack">
+      <div className="shipping-overview-grid">
+        <article className="shipping-metric-banner"><span className="shipping-overline"><AdminIcon name="fa-signal" /> Logistics health</span><h2>{shippedRate}% đơn đã có vận đơn</h2><p>Theo dõi độ phủ vận đơn và nhịp giao hàng để phát hiện sớm điểm nghẽn trong luồng xử lý đơn.</p><div className="shipping-banner-metrics"><div><span>Tổng đơn</span><strong>{data.totalOrders}</strong></div><div><span>Đã có vận đơn</span><strong>{data.totalShipped}</strong></div><div><span>Đang vận chuyển</span><strong>{inTransit}</strong></div></div></article>
+        <div className="shipping-health-stack"><article className="shipping-health-card"><span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span><div><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon violet"><AdminIcon name="fa-truck-fast" /></span><div><span>Đang trên hành trình</span><strong>{inTransit} vận đơn</strong></div></article><article className="shipping-health-card"><span className="shipping-kpi-icon amber"><AdminIcon name="fa-triangle-exclamation" /></span><div><span>Đã hủy</span><strong>{cancelled} vận đơn</strong></div></article></div>
+      </div>
+      <div className="shipping-config-grid">
+        <Panel icon="fa-truck" title="Phân bổ nhà vận chuyển" description="Tỷ trọng vận đơn đang được phục vụ bởi từng kênh giao hàng.">{data.byProvider.length > 0 ? <div className="shipping-distribution-list">{[...data.byProvider].sort((a, b) => b.count - a.count).map((item) => <DistributionRow key={item.provider} label={PROVIDER_LABEL[item.provider] || item.provider} value={item.count} total={data.totalShipped} max={maxProvider} color={PROVIDER_COLORS[item.provider] || '#5b5bd6'} />)}</div> : <EmptyState icon="fa-truck" text="Chưa có dữ liệu nhà vận chuyển." />}</Panel>
+        <Panel icon="fa-flag-checkered" title="Pipeline vận chuyển" description="Phân bổ vận đơn theo từng bước của hành trình giao hàng.">{data.byStatus.length > 0 ? <div className="shipping-distribution-list">{[...data.byStatus].sort((a, b) => b.count - a.count).map((item) => <DistributionRow key={item.status} label={STATUS_LABEL[item.status] || item.status} value={item.count} total={data.totalShipped} max={maxStatus} color={STATUS_COLORS[item.status] || '#64748b'} />)}</div> : <EmptyState icon="fa-route" text="Chưa có dữ liệu trạng thái vận chuyển." />}</Panel>
+      </div>
+      <Panel icon="fa-lightbulb" title="Tín hiệu vận hành" description="Các chỉ số nhanh giúp ưu tiên việc cần kiểm tra trong ngày."><div className="shipping-history-summary"><article className="shipping-history-mini"><span>Độ phủ vận đơn</span><strong>{shippedRate}%</strong></article><article className="shipping-history-mini"><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></article><article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{inTransit}</strong></article><article className="shipping-history-mini"><span>Cần theo dõi do hủy</span><strong>{cancelled}</strong></article></div></Panel>
     </div>
-    <div className="shipping-config-grid">
-      <Panel icon="fa-truck" title="Phân bổ nhà vận chuyển" description="Tỷ trọng vận đơn đang được phục vụ bởi từng kênh giao hàng.">{data.byProvider.length > 0 ? <div className="shipping-distribution-list">{[...data.byProvider].sort((a,b) => b.count-a.count).map((item) => <DistributionRow key={item.provider} label={PROVIDER_LABEL[item.provider] || item.provider} value={item.count} total={data.totalShipped} max={maxProvider} color={PROVIDER_COLORS[item.provider] || '#5b5bd6'} />)}</div> : <EmptyState icon="fa-truck" text="Chưa có dữ liệu nhà vận chuyển." />}</Panel>
-      <Panel icon="fa-flag-checkered" title="Pipeline vận chuyển" description="Phân bổ vận đơn theo từng bước của hành trình giao hàng.">{data.byStatus.length > 0 ? <div className="shipping-distribution-list">{[...data.byStatus].sort((a,b) => b.count-a.count).map((item) => <DistributionRow key={item.status} label={STATUS_LABEL[item.status] || item.status} value={item.count} total={data.totalShipped} max={maxStatus} color={STATUS_COLORS[item.status] || '#64748b'} />)}</div> : <EmptyState icon="fa-route" text="Chưa có dữ liệu trạng thái vận chuyển." />}</Panel>
-    </div>
-    <Panel icon="fa-lightbulb" title="Tín hiệu vận hành" description="Các chỉ số nhanh giúp ưu tiên việc cần kiểm tra trong ngày."><div className="shipping-history-summary"><article className="shipping-history-mini"><span>Độ phủ vận đơn</span><strong>{shippedRate}%</strong></article><article className="shipping-history-mini"><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></article><article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{inTransit}</strong></article><article className="shipping-history-mini"><span>Cần theo dõi do hủy</span><strong>{cancelled}</strong></article></div></Panel>
-  </div>;
+  );
 }
 
-function Panel({ icon, title, description, actions, children, flush = false }: { icon: string; title: string; description?: string; actions?: ReactNode; children: ReactNode; flush?: boolean }) {
+function Panel({ icon, title, description, actions, children, flush = false }: {
+  icon: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  flush?: boolean;
+}) {
   return <section className="shipping-panel"><header className="shipping-panel-header"><div className="shipping-panel-title"><span className="shipping-panel-icon"><AdminIcon name={icon} /></span><div><h2>{title}</h2>{description && <p>{description}</p>}</div></div>{actions && <div className="shipping-panel-actions">{actions}</div>}</header><div className={`shipping-panel-body ${flush ? 'flush' : ''}`}>{children}</div></section>;
 }
 
@@ -496,5 +750,5 @@ function DistributionRow({ label, value, total, max, color }: { label: string; v
 }
 
 function EmptyState({ icon, text }: { icon: string; text: string }) {
-  return <div className="shipping-empty-state"><i className={`fa ${icon}`} /><p>{text}</p></div>;
+  return <div className="shipping-empty-state"><AdminIcon name={icon} /><p>{text}</p></div>;
 }
