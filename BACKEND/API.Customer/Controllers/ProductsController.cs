@@ -9,7 +9,7 @@ namespace API.Customer.Controllers;
 public class ProductsController(IProductService productService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<PagedResult<ProductDTO>>> GetAll([FromQuery] ProductFilterDTO filter)
+    public async Task<ActionResult<PagedResult<ProductDTO>>> GetAll([FromQuery] StorefrontProductFilterDTO filter)
     {
         return Ok(await productService.GetAllAsync(filter));
     }
