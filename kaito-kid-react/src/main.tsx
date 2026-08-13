@@ -75,6 +75,9 @@ import './styles/checkout-ivy.css'
 // Admin page scene variants
 import './styles/admin/admin-page-variants.css'
 
+// Order detail drawer must load after legacy/admin overrides
+import './styles/admin/admin-orders-drawer-fix.css'
+
 import App from './App.tsx'
 import { registerServiceWorker } from './registerSW';
 
