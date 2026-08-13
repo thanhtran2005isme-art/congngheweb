@@ -11,7 +11,7 @@ import {
 import AdminIcon from './AdminIcon';
 
 
-type AdminConfirmTone = 'primary' | 'danger' | 'warning' | 'success';
+type AdminConfirmTone = 'primary' | 'default' | 'danger' | 'warning' | 'success';
 type AdminToastTone = 'success' | 'error' | 'info' | 'warning';
 
 interface AdminConfirmOptions {
@@ -71,6 +71,7 @@ function getConfirmButtonClass(tone: AdminConfirmTone) {
     case 'success':
       return 'btn btn-success';
     case 'primary':
+    case 'default':
     default:
       return 'btn btn-primary';
   }
