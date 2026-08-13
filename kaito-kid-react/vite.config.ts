@@ -8,9 +8,7 @@ export default defineConfig({
     host: '0.0.0.0', // Listen on all interfaces
     port: 5173,
     strictPort: true,
-    hmr: {
-      clientPort: 443, // HMR qua HTTPS từ Cloudflare
-      host: 'kaitokid.io.vn',
-    },
+    // Không hard-code HMR về kaitokid.io.vn.
+    // Khi chạy localhost, Vite sẽ tự dùng ws://localhost:5173.
   },
 })
