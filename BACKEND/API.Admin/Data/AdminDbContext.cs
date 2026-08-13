@@ -12,6 +12,7 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
     public DbSet<NguoiDung> NguoiDung => Set<NguoiDung>();
     public DbSet<BoSuuTap> BoSuuTap => Set<BoSuuTap>();
     public DbSet<MaGiamGia> MaGiamGia => Set<MaGiamGia>();
+    public DbSet<CouponRecipient> CouponRecipients => Set<CouponRecipient>();
     public DbSet<DanhGia> DanhGia => Set<DanhGia>();
     public DbSet<Banner> Banner => Set<Banner>();
     public DbSet<Lookbook> Lookbook => Set<Lookbook>();
@@ -37,5 +38,7 @@ public class AdminDbContext(DbContextOptions<AdminDbContext> options) : DbContex
         m.Entity<DonHang>().HasOne(d => d.NguoiDung).WithMany().HasForeignKey(d => d.NguoiDungId);
         m.Entity<FlashSale>().HasMany(f => f.ChiTiet).WithOne().HasForeignKey(c => c.FlashSaleId);
         m.Entity<CauHinhCuaHang>().HasIndex(c => c.MaCauHinh).IsUnique();
+        m.Entity<CouponRecipient>().HasIndex(r => new { r.CouponId, r.UserId }).IsUnique();
+        m.Entity<CouponRecipient>().HasIndex(r => new { r.UserId, r.CouponId });
     }
 }
