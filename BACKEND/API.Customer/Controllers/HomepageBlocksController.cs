@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using API.Customer.Data;
+using API.Customer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -76,18 +77,26 @@ public class HomepageBlocksController(CustomerDbContext db) : ControllerBase
         {
             var ids = ParseProductIds(config.ProductIds);
             var selectionMode = ids.Count > 0 ? "manual" : "automatic";
+            List<Product> selectedProducts;
 
-            var selectedProducts = !config.IsActive
-                ? []
-                : selectionMode == "manual"
-                    ? ids.Where(productMap.ContainsKey).Select(id => productMap[id]).ToList()
-                    : config.Key switch
-                    {
-                        "newArrivals" => activeProducts.Where(p => p.IsNew).OrderByDescending(p => p.CreatedAt).Take(8).ToList(),
-                        "saleProducts" => activeProducts.Where(p => p.IsSale).OrderByDescending(p => (p.OldPrice ?? p.Price) - p.Price).Take(8).ToList(),
-                        "bestSellers" => activeProducts.Where(p => p.IsBestSeller).OrderByDescending(p => p.SoldCount).Take(8).ToList(),
-                        _ => []
-                    };
+            if (!config.IsActive)
+            {
+                selectedProducts = [];
+            }
+            else if (selectionMode == "manual")
+            {
+                selectedProducts = ids.Where(productMap.ContainsKey).Select(id => productMap[id]).ToList();
+            }
+            else
+            {
+                selectedProducts = config.Key switch
+                {
+                    "newArrivals" => activeProducts.Where(p => p.IsNew).OrderByDescending(p => p.CreatedAt).Take(8).ToList(),
+                    "saleProducts" => activeProducts.Where(p => p.IsSale).OrderByDescending(p => (p.OldPrice ?? p.Price) - p.Price).Take(8).ToList(),
+                    "bestSellers" => activeProducts.Where(p => p.IsBestSeller).OrderByDescending(p => p.SoldCount).Take(8).ToList(),
+                    _ => []
+                };
+            }
 
             var products = selectedProducts.Select(product => new
             {
