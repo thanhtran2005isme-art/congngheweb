@@ -18,3 +18,14 @@ public class HomepageBlock
     [Column("NgayTao")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [Column("NgayCapNhat")] public DateTime? UpdatedAt { get; set; }
 }
+
+[Table("CauHinhTrangChu")]
+public class HomepageSectionConfig
+{
+    public int Id { get; set; }
+    [Column("TenSection")] public string Key { get; set; } = string.Empty;
+    [Column("DanhSachSPId")] public string? ProductIds { get; set; }
+    [Column("ThuTu")] public int SortOrder { get; set; }
+    [Column("TrangThai")] public bool IsActive { get; set; } = true;
+    [Column("NgayCapNhat")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
