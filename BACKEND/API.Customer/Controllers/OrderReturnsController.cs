@@ -22,9 +22,8 @@ public class OrderReturnsController(CustomerDbContext db) : ControllerBase
             .Where(o => o.UserId == UserId)
             .Select(o => new { o.Id, o.Status, o.CreatedAt, o.UpdatedAt })
             .ToListAsync();
-        var orderIds = orders.Select(o => o.Id).ToList();
         var requests = await db.OrderReturnRequests
-            .Where(r => r.UserId == UserId && orderIds.Contains(r.OrderId))
+            .Where(r => r.UserId == UserId)
             .ToListAsync();
         var requestByOrder = requests.ToDictionary(r => r.OrderId);
         var now = DateTime.UtcNow;
