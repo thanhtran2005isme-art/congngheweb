@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using System.Text;
 using System.Text.Json;
 using API.Customer.Data;
 using API.Customer.DTOs;
@@ -12,20 +14,70 @@ public class ProductService(CustomerDbContext db) : IProductService
     {
         var query = db.Products.Where(p => p.Status == "active").AsQueryable();
 
-        if (!string.IsNullOrEmpty(filter.Category))
-            query = query.Where(p => p.Category == filter.Category);
+        var category = filter.Category?.Trim();
+        var subcategory = filter.Subcategory?.Trim();
 
-        if (!string.IsNullOrEmpty(filter.Gender))
-            query = query.Where(p => p.Gender == filter.Gender);
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var rootCategory = ToCanonicalRootCategory(category);
+            if (rootCategory is not null)
+            {
+                query = query.Where(p => p.Category == rootCategory || p.Category == category);
+            }
+            else if (string.IsNullOrWhiteSpace(subcategory))
+            {
+                // Backward compatibility: old mega-menu URLs used category=Áo thun
+                // even though Áo thun is stored in DanhMucPhu.
+                query = query.Where(p => p.Subcategory == category || p.Category == category);
+            }
+        }
 
-        if (!string.IsNullOrEmpty(filter.Search))
-            query = query.Where(p => p.Name.Contains(filter.Search) || p.Description.Contains(filter.Search));
+        if (!string.IsNullOrWhiteSpace(subcategory))
+            query = query.Where(p => p.Subcategory == subcategory);
+
+        if (!string.IsNullOrWhiteSpace(filter.Gender))
+        {
+            var aliases = GetGenderAliases(filter.Gender);
+            query = query.Where(p => aliases.Contains(p.Gender));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Style))
+        {
+            var style = filter.Style.Trim();
+            query = query.Where(p => p.Style != null && p.Style == style);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.AgeGroup))
+        {
+            var ageGroup = filter.AgeGroup.Trim();
+            query = query.Where(p => p.AgeGroup != null && p.AgeGroup == ageGroup);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Collection) && int.TryParse(filter.Collection, out var collectionId))
+            query = query.Where(p => p.CollectionId == collectionId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var keyword = filter.Search.Trim();
+            query = query.Where(p =>
+                p.Name.Contains(keyword)
+                || p.Sku.Contains(keyword)
+                || p.Description.Contains(keyword)
+                || (p.ShortDescription != null && p.ShortDescription.Contains(keyword))
+                || (p.Subcategory != null && p.Subcategory.Contains(keyword)));
+        }
 
         if (filter.MinPrice.HasValue)
             query = query.Where(p => p.Price >= filter.MinPrice.Value);
 
         if (filter.MaxPrice.HasValue)
             query = query.Where(p => p.Price <= filter.MaxPrice.Value);
+
+        if (filter.MinRating.HasValue && filter.MinRating.Value > 0)
+            query = query.Where(p => p.Rating >= filter.MinRating.Value);
+
+        query = ApplyJsonArrayAnyFilter(query, filter.Sizes, nameof(Product.Sizes));
+        query = ApplyJsonArrayAnyFilter(query, filter.Colors, nameof(Product.Colors));
 
         if (filter.IsNew == true)
             query = query.Where(p => p.IsNew);
@@ -46,10 +98,12 @@ public class ProductService(CustomerDbContext db) : IProductService
             _ => query.OrderByDescending(p => p.Id)
         };
 
+        var page = Math.Max(1, filter.Page);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var totalCount = await query.CountAsync();
         var items = await query
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(p => MapToDTO(p))
             .ToListAsync();
 
@@ -57,8 +111,8 @@ public class ProductService(CustomerDbContext db) : IProductService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = filter.Page,
-            PageSize = filter.PageSize
+            Page = page,
+            PageSize = pageSize
         };
     }
 
@@ -121,6 +175,71 @@ public class ProductService(CustomerDbContext db) : IProductService
             .Take(count)
             .Select(p => MapToDTO(p))
             .ToListAsync();
+    }
+
+    private static IQueryable<Product> ApplyJsonArrayAnyFilter(IQueryable<Product> query, string? csv, string propertyName)
+    {
+        var values = (csv ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (values.Length == 0) return query;
+
+        var parameter = Expression.Parameter(typeof(Product), "p");
+        var property = Expression.Property(parameter, propertyName);
+        var notNull = Expression.NotEqual(property, Expression.Constant(null, typeof(string)));
+        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), [typeof(string)])!;
+
+        Expression? anyMatch = null;
+        foreach (var value in values)
+        {
+            var token = Expression.Constant($"\"{value}\"");
+            var contains = Expression.Call(property, containsMethod, token);
+            anyMatch = anyMatch is null ? contains : Expression.OrElse(anyMatch, contains);
+        }
+
+        var body = Expression.AndAlso(notNull, anyMatch!);
+        return query.Where(Expression.Lambda<Func<Product, bool>>(body, parameter));
+    }
+
+    private static string? ToCanonicalRootCategory(string value)
+    {
+        return RemoveDiacritics(value).ToLowerInvariant().Trim() switch
+        {
+            "ao" => "Ao",
+            "quan" => "Quan",
+            "vay" => "Vay",
+            "dam" => "Dam",
+            "phu kien" or "phukien" => "Phu kien",
+            _ => null,
+        };
+    }
+
+    private static string[] GetGenderAliases(string value)
+    {
+        return RemoveDiacritics(value).ToLowerInvariant().Replace(" ", string.Empty) switch
+        {
+            "nu" or "women" or "woman" or "female" => ["Nu", "Nữ"],
+            "nam" or "men" or "man" or "male" => ["Nam"],
+            "treem" or "kid" or "kids" or "children" => ["Tre em", "Trẻ em", "TreEm"],
+            "unisex" => ["Unisex"],
+            _ => [value.Trim()],
+        };
+    }
+
+    private static string RemoveDiacritics(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var character in normalized)
+        {
+            var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category != System.Globalization.UnicodeCategory.NonSpacingMark)
+                builder.Append(character == 'đ' ? 'd' : character == 'Đ' ? 'D' : character);
+        }
+        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
     private static ProductDTO MapToDTO(Product p) => new()
