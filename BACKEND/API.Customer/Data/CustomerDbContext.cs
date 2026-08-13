@@ -10,6 +10,7 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options) : Db
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderReturnRequest> OrderReturnRequests => Set<OrderReturnRequest>();
     public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Address> Addresses => Set<Address>();
@@ -48,6 +49,13 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options) : Db
             e.HasIndex(o => o.OrderCode).IsUnique();
             e.HasMany(o => o.Items).WithOne(i => i.Order).HasForeignKey(i => i.OrderId);
             e.HasMany(o => o.ShippingHistories).WithOne(h => h.Order).HasForeignKey(h => h.OrderId);
+        });
+
+        modelBuilder.Entity<OrderReturnRequest>(e =>
+        {
+            e.HasIndex(r => r.OrderId).IsUnique();
+            e.HasIndex(r => new { r.UserId, r.Status });
+            e.HasOne(r => r.Order).WithMany().HasForeignKey(r => r.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<WishlistItem>(e =>
