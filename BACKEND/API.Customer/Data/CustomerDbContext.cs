@@ -15,6 +15,7 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options) : Db
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Address> Addresses => Set<Address>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponRecipient> CouponRecipients => Set<CouponRecipient>();
     public DbSet<Collection> Collections => Set<Collection>();
     public DbSet<Lookbook> Lookbooks => Set<Lookbook>();
     public DbSet<LookbookHotspot> LookbookHotspots => Set<LookbookHotspot>();
@@ -71,6 +72,12 @@ public class CustomerDbContext(DbContextOptions<CustomerDbContext> options) : Db
         modelBuilder.Entity<Coupon>(e =>
         {
             e.HasIndex(c => c.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<CouponRecipient>(e =>
+        {
+            e.HasIndex(r => new { r.CouponId, r.UserId }).IsUnique();
+            e.HasIndex(r => new { r.UserId, r.CouponId });
         });
 
         modelBuilder.Entity<ShippingHistory>(e =>
