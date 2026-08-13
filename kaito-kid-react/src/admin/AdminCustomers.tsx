@@ -1,684 +1,828 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
 import AdminIcon from '../components/admin/AdminIcon';
 import { useAdminUi } from '../components/admin/AdminUiProvider';
-import { orderService } from '../services/orderService';
-import { productService } from '../services/productService';
 import { customerApi } from '../services/api';
-import type { CustomerDTO } from '../services/api/customerApi';
-import LoadingSpinner from '../components/LoadingSpinner';
-import type { Order, Product } from '../types';
+import type {
+  CustomerDTO,
+  CustomerDetailDTO,
+  CustomerOrderStatus,
+} from '../services/api/customerApi';
 import { formatCurrency, formatDate } from '../utils/format';
-import toast from 'react-hot-toast';
 import {
-  buildCustomerSummaries,
+  getDefaultCareStatus,
   readStoredCustomerProfiles,
   saveStoredCustomerProfiles,
   type CustomerCareStatus,
-  type CustomerSummary,
   type CustomerTier,
 } from '../utils/customerProfiles';
 
-interface RawCustomer {
-  id?: number;
-  name: string;
-  email: string;
-  phone?: string;
-  createdAt?: string;
-  password?: string;
-  isActive?: boolean;
-  orderCount?: number;
-  totalSpent?: number;
-}
+type AccountFilter = 'all' | 'active' | 'inactive';
+type SortMode = 'spend-desc' | 'orders-desc' | 'recent' | 'newest' | 'name';
 
-const CARE_OPTIONS: Array<{ value: CustomerCareStatus; label: string; detail: string }> = [
-  { value: 'new-lead', label: 'Khách mới', detail: 'Cần chào mừng và dẫn dắt mua đơn đầu.' },
-  { value: 'following', label: 'Đang chăm sóc', detail: 'Nhóm đang tương tác đều, nên giữ nhịp liên hệ.' },
-  { value: 'vip-care', label: 'Chăm sóc VIP', detail: 'Ưu tiên ưu đãi riêng, hỗ trợ nhanh và cá nhân hóa.' },
-  { value: 'reactivation', label: 'Kích hoạt lại', detail: 'Khách có dấu hiệu rời bỏ, cần tái tiếp cận.' },
+type CustomerView = CustomerDTO & {
+  tier: CustomerTier;
+  careStatus: CustomerCareStatus;
+  note: string;
+  tags: string[];
+  averageOrderValue: number;
+};
+
+const PAGE_SIZE = 12;
+const VIP_SPEND_THRESHOLD = 5_000_000;
+const VIP_ORDER_THRESHOLD = 8;
+const AT_RISK_DAYS = 90;
+
+const TIER_OPTIONS: Array<{
+  value: 'all' | CustomerTier;
+  label: string;
+  icon: string;
+}> = [
+  { value: 'all', label: 'Tất cả', icon: 'fa-users' },
+  { value: 'vip', label: 'VIP', icon: 'fa-star' },
+  { value: 'regular', label: 'Thường xuyên', icon: 'fa-refresh' },
+  { value: 'new', label: 'Chưa mua', icon: 'fa-user-plus' },
+  { value: 'at-risk', label: 'Có nguy cơ', icon: 'fa-exclamation-triangle' },
 ];
 
 const TIER_LABELS: Record<CustomerTier, string> = {
-  new: 'Mới',
+  new: 'Chưa mua',
   regular: 'Thường xuyên',
   vip: 'VIP',
-  'at-risk': 'Nguy cơ rời bỏ',
+  'at-risk': 'Có nguy cơ',
 };
 
-const ORDER_STATUS_LABELS: Record<Order['status'], string> = {
+const CARE_OPTIONS: Array<{ value: CustomerCareStatus; label: string; description: string }> = [
+  { value: 'new-lead', label: 'Khách mới', description: 'Chào mừng và dẫn dắt khách đến đơn đầu tiên.' },
+  { value: 'following', label: 'Đang chăm sóc', description: 'Duy trì nhịp tương tác và theo dõi nhu cầu.' },
+  { value: 'vip-care', label: 'Chăm sóc VIP', description: 'Ưu tiên hỗ trợ, ưu đãi và cá nhân hóa trải nghiệm.' },
+  { value: 'reactivation', label: 'Kích hoạt lại', description: 'Tái tiếp cận khách đã lâu chưa phát sinh đơn.' },
+];
+
+const ORDER_STATUS_LABELS: Record<CustomerOrderStatus, string> = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
   shipping: 'Đang giao',
-  completed: 'Hoàn tất',
+  completed: 'Hoàn thành',
   cancelled: 'Đã hủy',
 };
 
-function getCustomerKey(customer: CustomerSummary) {
-  return customer.email.toLowerCase();
-}
-
-function getCareLabel(status: CustomerCareStatus) {
-  return CARE_OPTIONS.find((option) => option.value === status)?.label || 'Đang chăm sóc';
-}
-
-function getCareDetail(status: CustomerCareStatus) {
-  return CARE_OPTIONS.find((option) => option.value === status)?.detail || '';
-}
+const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
+  { value: 'spend-desc', label: 'Chi tiêu cao nhất' },
+  { value: 'orders-desc', label: 'Nhiều đơn nhất' },
+  { value: 'recent', label: 'Mua gần đây nhất' },
+  { value: 'newest', label: 'Đăng ký mới nhất' },
+  { value: 'name', label: 'Tên A → Z' },
+];
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return 'KH';
-  }
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
+  if (parts.length === 0) return 'KH';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function daysSince(dateValue?: string) {
+  if (!dateValue) return Number.POSITIVE_INFINITY;
+  const timestamp = new Date(dateValue).getTime();
+  if (Number.isNaN(timestamp)) return Number.POSITIVE_INFINITY;
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 86_400_000));
+}
+
+function deriveTier(customer: CustomerDTO): CustomerTier {
+  if (customer.orderCount === 0) return 'new';
+  if (customer.totalSpent >= VIP_SPEND_THRESHOLD || customer.completedOrders >= VIP_ORDER_THRESHOLD) return 'vip';
+  if (daysSince(customer.lastOrderAt) >= AT_RISK_DAYS) return 'at-risk';
+  return 'regular';
+}
+
+function formatRelativeActivity(dateValue?: string) {
+  if (!dateValue) return 'Chưa phát sinh đơn';
+  const days = daysSince(dateValue);
+  if (!Number.isFinite(days)) return 'Không rõ thời gian';
+  if (days === 0) return 'Hôm nay';
+  if (days === 1) return 'Hôm qua';
+  if (days < 30) return `${days} ngày trước`;
+  if (days < 365) return `${Math.floor(days / 30)} tháng trước`;
+  return `${Math.floor(days / 365)} năm trước`;
+}
+
+function percent(value: number, total: number) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function csvCell(value: string | number) {
+  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
 export default function AdminCustomers() {
   const [searchParams] = useSearchParams();
   const { confirm, notify } = useAdminUi();
-  const [users, setUsers] = useState<RawCustomer[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [customersRaw, setCustomersRaw] = useState<CustomerDTO[]>([]);
   const [profiles, setProfiles] = useState(readStoredCustomerProfiles());
   const [loading, setLoading] = useState(true);
-  const searchKeyword = searchParams.get('search') || '';
-  const [searchTerm, setSearchTerm] = useState(searchKeyword);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const deferredSearch = useDeferredValue(search);
+  const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
   const [tierFilter, setTierFilter] = useState<'all' | CustomerTier>('all');
   const [careFilter, setCareFilter] = useState<'all' | CustomerCareStatus>('all');
-  const [selectedCustomerKey, setSelectedCustomerKey] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('spend-desc');
+  const [page, setPage] = useState(1);
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<CustomerDetailDTO | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [detailCareStatus, setDetailCareStatus] = useState<CustomerCareStatus>('following');
-  const [detailNote, setDetailNote] = useState('');
   const [detailTags, setDetailTags] = useState('');
+  const [detailNote, setDetailNote] = useState('');
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  // Fetch customers from backend
-  useEffect(() => {
-    fetchCustomers();
-    setOrders(orderService.getAll());
-    setProducts(productService.getAll());
-    setProfiles(readStoredCustomerProfiles());
-  }, []);
-
-  async function fetchCustomers() {
+  const loadCustomers = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
-      const response = await customerApi.getCustomers({
-        search: searchKeyword || undefined,
-        page: 1,
-        pageSize: 1000, // Get all customers for now
-      });
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
 
-      if (response.success && response.data) {
-        // Map CustomerDTO to RawCustomer format
-        const mappedUsers: RawCustomer[] = response.data.items.map((customer) => ({
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          createdAt: customer.createdAt,
-          isActive: customer.isActive,
-          orderCount: customer.orderCount,
-          totalSpent: customer.totalSpent,
-        }));
-        setUsers(mappedUsers);
-      } else {
-        toast.error(response.error || 'Không thể tải danh sách khách hàng');
-        setUsers([]);
+      const result = await customerApi.getCustomers({ page: 1, pageSize: 1000 });
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Không thể tải danh sách khách hàng');
       }
-    } catch (error) {
-      console.error('Failed to fetch customers:', error);
-      toast.error('Không thể tải danh sách khách hàng');
-      setUsers([]);
+
+      setCustomersRaw(result.data.items);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Không thể tải danh sách khách hàng';
+      setError(message);
+      if (silent) toast.error(message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    setSearchTerm(searchKeyword);
-  }, [searchKeyword]);
+    void loadCustomers();
+  }, [loadCustomers]);
 
-  const customers = useMemo(
-    () => buildCustomerSummaries(users, orders, profiles, products),
-    [orders, products, profiles, users],
-  );
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
+
+  const customers = useMemo<CustomerView[]>(() => {
+    return customersRaw.map((customer) => {
+      const tier = deriveTier(customer);
+      const stored = profiles[customer.email.toLowerCase()];
+      return {
+        ...customer,
+        tier,
+        careStatus: stored?.careStatus || getDefaultCareStatus(tier),
+        note: stored?.note || '',
+        tags: stored?.tags || [],
+        averageOrderValue: customer.completedOrders > 0 ? customer.totalSpent / customer.completedOrders : 0,
+      };
+    });
+  }, [customersRaw, profiles]);
+
+  const stats = useMemo(() => {
+    const total = customers.length;
+    const active = customers.filter((customer) => customer.isActive).length;
+    const inactive = total - active;
+    const vip = customers.filter((customer) => customer.tier === 'vip').length;
+    const returning = customers.filter((customer) => customer.orderCount >= 2).length;
+    const newCustomers = customers.filter((customer) => customer.tier === 'new').length;
+    const atRisk = customers.filter((customer) => customer.tier === 'at-risk').length;
+    const lifetimeRevenue = customers.reduce((sum, customer) => sum + customer.totalSpent, 0);
+    const customersWithOrders = customers.filter((customer) => customer.completedOrders > 0);
+    const avgCustomerValue = customersWithOrders.length > 0
+      ? lifetimeRevenue / customersWithOrders.length
+      : 0;
+
+    return {
+      total,
+      active,
+      inactive,
+      vip,
+      returning,
+      newCustomers,
+      atRisk,
+      lifetimeRevenue,
+      avgCustomerValue,
+      activeRate: percent(active, total),
+      repeatRate: percent(returning, total),
+    };
+  }, [customers]);
+
+  const tierCounts = useMemo(() => {
+    const counts: Record<'all' | CustomerTier, number> = {
+      all: customers.length,
+      new: 0,
+      regular: 0,
+      vip: 0,
+      'at-risk': 0,
+    };
+    customers.forEach((customer) => {
+      counts[customer.tier] += 1;
+    });
+    return counts;
+  }, [customers]);
 
   const filteredCustomers = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return customers.filter((customer) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        customer.name.toLowerCase().includes(normalizedSearch) ||
-        customer.email.toLowerCase().includes(normalizedSearch) ||
-        customer.phone.includes(normalizedSearch) ||
-        customer.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
+    const keyword = deferredSearch.trim().toLowerCase();
+    const result = customers.filter((customer) => {
+      const matchesSearch = !keyword
+        || customer.name.toLowerCase().includes(keyword)
+        || customer.email.toLowerCase().includes(keyword)
+        || (customer.phone || '').toLowerCase().includes(keyword)
+        || customer.tags.some((tag) => tag.toLowerCase().includes(keyword));
+      const matchesAccount = accountFilter === 'all'
+        || (accountFilter === 'active' && customer.isActive)
+        || (accountFilter === 'inactive' && !customer.isActive);
       const matchesTier = tierFilter === 'all' || customer.tier === tierFilter;
       const matchesCare = careFilter === 'all' || customer.careStatus === careFilter;
-
-      return matchesSearch && matchesTier && matchesCare;
+      return matchesSearch && matchesAccount && matchesTier && matchesCare;
     });
-  }, [careFilter, customers, searchTerm, tierFilter]);
+
+    return [...result].sort((a, b) => {
+      switch (sortMode) {
+        case 'orders-desc':
+          return b.orderCount - a.orderCount || b.totalSpent - a.totalSpent;
+        case 'recent':
+          return new Date(b.lastOrderAt || 0).getTime() - new Date(a.lastOrderAt || 0).getTime();
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'name':
+          return a.name.localeCompare(b.name, 'vi');
+        case 'spend-desc':
+        default:
+          return b.totalSpent - a.totalSpent || b.orderCount - a.orderCount;
+      }
+    });
+  }, [accountFilter, careFilter, customers, deferredSearch, sortMode, tierFilter]);
 
   useEffect(() => {
-    if (filteredCustomers.length === 0) {
-      setSelectedCustomerKey(null);
+    setPage(1);
+  }, [accountFilter, careFilter, deferredSearch, sortMode, tierFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+  const pagedCustomers = filteredCustomers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const selectedCustomer = selectedCustomerId
+    ? customers.find((customer) => customer.id === selectedCustomerId) || null
+    : null;
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setDetail(null);
       return;
     }
 
-    if (!selectedCustomerKey || !filteredCustomers.some((customer) => getCustomerKey(customer) === selectedCustomerKey)) {
-      setSelectedCustomerKey(getCustomerKey(filteredCustomers[0]));
-    }
-  }, [filteredCustomers, selectedCustomerKey]);
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetail(null);
 
-  const stats = useMemo(
-    () => ({
-      total: customers.length,
-      vip: customers.filter((customer) => customer.tier === 'vip').length,
-      newCustomers: customers.filter((customer) => customer.tier === 'new').length,
-      atRisk: customers.filter((customer) => customer.tier === 'at-risk').length,
-      repeated: customers.filter((customer) => customer.orderCount >= 2).length,
-      tagged: customers.filter((customer) => customer.tags.length > 0).length,
-      noPhone: customers.filter((customer) => !customer.phone).length,
-      totalRevenue: customers.reduce((sum, customer) => sum + customer.totalSpend, 0),
-    }),
-    [customers],
-  );
+    void customerApi.getCustomerById(selectedCustomerId).then((result) => {
+      if (cancelled) return;
+      if (result.success && result.data) {
+        setDetail(result.data);
+      } else {
+        toast.error(result.error || 'Không thể tải chi tiết khách hàng');
+      }
+      setDetailLoading(false);
+    });
 
-  const careCounts = useMemo(
-    () =>
-      CARE_OPTIONS.map((option) => ({
-        ...option,
-        count: customers.filter((customer) => customer.careStatus === option.value).length,
-      })),
-    [customers],
-  );
-
-  const selectedCustomer =
-    (selectedCustomerKey && customers.find((customer) => getCustomerKey(customer) === selectedCustomerKey)) || null;
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomerId]);
 
   useEffect(() => {
-    if (!selectedCustomer) {
-      return;
-    }
-
+    if (!selectedCustomer) return;
     setDetailCareStatus(selectedCustomer.careStatus);
-    setDetailNote(selectedCustomer.note);
     setDetailTags(selectedCustomer.tags.join(', '));
+    setDetailNote(selectedCustomer.note);
   }, [selectedCustomer]);
 
-  const selectedProfileUpdatedAt = selectedCustomer
-    ? profiles[getCustomerKey(selectedCustomer)]?.updatedAt
-    : undefined;
+  useEffect(() => {
+    if (!selectedCustomerId) return;
 
-  const selectedRank = selectedCustomer
-    ? customers.findIndex((customer) => getCustomerKey(customer) === getCustomerKey(selectedCustomer)) + 1
-    : 0;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.requestAnimationFrame(() => closeButtonRef.current?.focus());
 
-  const selectedRevenueShare = selectedCustomer && stats.totalRevenue > 0
-    ? Number(((selectedCustomer.totalSpend / stats.totalRevenue) * 100).toFixed(1))
-    : 0;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedCustomerId(null);
+        return;
+      }
 
-  const persistProfiles = (
-    nextProfiles: ReturnType<typeof readStoredCustomerProfiles>,
-    message: string,
-  ) => {
-    const saved = saveStoredCustomerProfiles(nextProfiles);
-    setProfiles(saved);
-    notify({ message, tone: 'success' });
+      if (event.key !== 'Tab') return;
+      const drawer = document.querySelector<HTMLElement>('.customers-drawer');
+      if (!drawer) return;
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [selectedCustomerId]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setAccountFilter('all');
+    setTierFilter('all');
+    setCareFilter('all');
+    setSortMode('spend-desc');
   };
 
-  const saveSelectedCustomerProfile = () => {
-    if (!selectedCustomer) {
-      return;
-    }
-
-    const customerKey = getCustomerKey(selectedCustomer);
-    persistProfiles(
-      {
-        ...profiles,
-        [customerKey]: {
-          email: selectedCustomer.email,
-          careStatus: detailCareStatus,
-          note: detailNote.trim(),
-          tags: detailTags.split(',').map((tag) => tag.trim()).filter(Boolean),
-          updatedAt: new Date().toISOString(),
-        },
+  const saveCustomerCare = () => {
+    if (!selectedCustomer) return;
+    const key = selectedCustomer.email.toLowerCase();
+    const nextProfiles = saveStoredCustomerProfiles({
+      ...profiles,
+      [key]: {
+        email: selectedCustomer.email,
+        careStatus: detailCareStatus,
+        tags: detailTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        note: detailNote.trim(),
+        updatedAt: new Date().toISOString(),
       },
-      'Đã lưu hồ sơ chăm sóc khách hàng.',
-    );
+    });
+    setProfiles(nextProfiles);
+    notify({ message: 'Đã lưu ghi chú chăm sóc khách hàng.', tone: 'success' });
   };
 
-  const handleDelete = async (customer: CustomerSummary) => {
+  const toggleCustomerStatus = async (customer: CustomerView) => {
+    const locking = customer.isActive;
     const accepted = await confirm({
-      title: 'Khóa tài khoản khách hàng',
-      message: `Tài khoản ${customer.name} sẽ bị khóa (inactive). Bạn có thể mở khóa lại sau.`,
-      confirmLabel: 'Khóa tài khoản',
-      tone: 'danger',
-      icon: 'fa-user-slash',
+      title: locking ? 'Khóa tài khoản khách hàng' : 'Mở lại tài khoản khách hàng',
+      message: locking
+        ? `${customer.name} sẽ không thể tiếp tục sử dụng tài khoản cho đến khi được mở lại.`
+        : `${customer.name} sẽ được kích hoạt lại và có thể sử dụng tài khoản bình thường.`,
+      confirmLabel: locking ? 'Khóa tài khoản' : 'Mở tài khoản',
+      tone: locking ? 'danger' : 'default',
+      icon: locking ? 'fa-user-slash' : 'fa-circle-check',
     });
 
-    if (!accepted) {
+    if (!accepted) return;
+
+    const result = await customerApi.toggleStatus(customer.id);
+    if (!result.success || !result.data) {
+      notify({ message: result.error || 'Không thể cập nhật trạng thái khách hàng.', tone: 'error' });
       return;
     }
 
-    // Find customer ID from users list
-    const user = users.find((u) => u.email.toLowerCase() === customer.email.toLowerCase());
-    if (!user || !user.id) {
-      notify({ message: 'Không tìm thấy ID khách hàng.', tone: 'error' });
-      return;
-    }
-
-    try {
-      const response = await customerApi.toggleStatus(user.id);
-      
-      if (response.success) {
-        notify({ message: 'Đã cập nhật trạng thái khách hàng.', tone: 'success' });
-        fetchCustomers(); // Refresh list
-        
-        if (selectedCustomerKey === customer.email.toLowerCase()) {
-          setSelectedCustomerKey(null);
-        }
-      } else {
-        notify({ message: response.error || 'Không thể cập nhật trạng thái.', tone: 'error' });
-      }
-    } catch (error) {
-      console.error('Failed to toggle customer status:', error);
-      notify({ message: 'Không thể cập nhật trạng thái khách hàng.', tone: 'error' });
-    }
+    setCustomersRaw((current) => current.map((item) => (
+      item.id === customer.id
+        ? { ...item, isActive: result.data!.isActive, updatedAt: result.data!.updatedAt }
+        : item
+    )));
+    setDetail((current) => current && current.id === customer.id
+      ? { ...current, isActive: result.data!.isActive, updatedAt: result.data!.updatedAt }
+      : current);
+    notify({
+      message: result.data.isActive ? 'Đã mở lại tài khoản khách hàng.' : 'Đã khóa tài khoản khách hàng.',
+      tone: 'success',
+    });
   };
 
+  const exportCsv = () => {
+    const header = ['Tên', 'Email', 'Số điện thoại', 'Trạng thái', 'Phân khúc', 'Số đơn', 'Đơn hoàn thành', 'Tổng chi tiêu', 'Đơn gần nhất'];
+    const rows = filteredCustomers.map((customer) => [
+      customer.name,
+      customer.email,
+      customer.phone || '',
+      customer.isActive ? 'Hoạt động' : 'Đã khóa',
+      TIER_LABELS[customer.tier],
+      customer.orderCount,
+      customer.completedOrders,
+      customer.totalSpent,
+      customer.lastOrderAt || '',
+    ]);
+    const content = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
+    const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `kaito-kid-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const activeFilterCount = [
+    search.trim(),
+    accountFilter !== 'all',
+    tierFilter !== 'all',
+    careFilter !== 'all',
+  ].filter(Boolean).length;
+
+  if (loading) {
+    return (
+      <div className="customers-v2">
+        <div className="customers-loading-head dash-skeleton" />
+        <div className="customers-kpi-grid">
+          {Array.from({ length: 6 }).map((_, index) => <div className="customers-kpi-card dash-skeleton" key={index} />)}
+        </div>
+        <div className="customers-loading-table dash-skeleton" />
+      </div>
+    );
+  }
+
+  if (error && customers.length === 0) {
+    return (
+      <div className="customers-v2 customers-error-page">
+        <div className="customers-error-card">
+          <span><AdminIcon name="fa-exclamation-triangle" /></span>
+          <h1>Không thể tải khách hàng</h1>
+          <p>{error}</p>
+          <button type="button" onClick={() => void loadCustomers()}>
+            <AdminIcon name="fa-refresh" /> Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const drawerCustomer = detail || selectedCustomer;
+
   return (
-    <div className="customers-admin-page customers-concierge-page">
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="customers-concierge-shell">
-        <aside className="customers-sideboard">
-          <section className="customers-brand-card">
-            <span className="customers-overline">Quản lý khách hàng</span>
-            <h1>Khách hàng</h1>
-            <p>
-              Quản lý tệp khách, lọc phân khúc và mở nhanh hồ sơ chăm sóc trên cùng một màn hình.
-            </p>
-          </section>
+    <div className="customers-v2">
+      <header className="customers-page-header">
+        <div className="customers-page-copy">
+          <span className="customers-overline">Customer management</span>
+          <h1>Khách hàng</h1>
+          <p>Quản lý tài khoản, giá trị vòng đời, hành vi mua hàng và nhịp chăm sóc khách trên một màn hình.</p>
+        </div>
+        <div className="customers-page-actions">
+          <button type="button" className="customers-button secondary" onClick={exportCsv} disabled={filteredCustomers.length === 0}>
+            <AdminIcon name="fa-download" />
+            <span>Xuất CSV</span>
+          </button>
+          <button type="button" className="customers-button primary" onClick={() => void loadCustomers(true)} disabled={refreshing}>
+            <AdminIcon name={`fa-refresh${refreshing ? ' fa-spin' : ''}`} />
+            <span>{refreshing ? 'Đang làm mới' : 'Làm mới dữ liệu'}</span>
+          </button>
+        </div>
+      </header>
 
-          <section className="customers-side-panel customers-snapshot-panel">
-            <div className="customers-side-head">
-              <span className="customers-overline">Tổng quan</span>
-              <strong>{stats.total} hồ sơ</strong>
-            </div>
+      <section className="customers-kpi-grid" aria-label="Tổng quan khách hàng">
+        <article className="customers-kpi-card is-primary">
+          <span className="customers-kpi-icon"><AdminIcon name="fa-users" /></span>
+          <div><span>Tổng khách hàng</span><strong>{stats.total}</strong><p>{stats.activeRate}% tài khoản đang hoạt động</p></div>
+        </article>
+        <article className="customers-kpi-card">
+          <span className="customers-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span>
+          <div><span>Đang hoạt động</span><strong>{stats.active}</strong><p>{stats.inactive} tài khoản đang bị khóa</p></div>
+        </article>
+        <article className="customers-kpi-card">
+          <span className="customers-kpi-icon violet"><AdminIcon name="fa-star" /></span>
+          <div><span>Khách VIP</span><strong>{stats.vip}</strong><p>≥ 5 triệu hoặc ≥ 8 đơn hoàn thành</p></div>
+        </article>
+        <article className="customers-kpi-card">
+          <span className="customers-kpi-icon blue"><AdminIcon name="fa-refresh" /></span>
+          <div><span>Khách quay lại</span><strong>{stats.returning}</strong><p>{stats.repeatRate}% có từ 2 đơn trở lên</p></div>
+        </article>
+        <article className="customers-kpi-card">
+          <span className="customers-kpi-icon amber"><AdminIcon name="fa-dollar-sign" /></span>
+          <div><span>Tổng giá trị khách</span><strong>{formatCurrency(stats.lifetimeRevenue)}</strong><p>LTV từ các đơn đã hoàn thành</p></div>
+        </article>
+        <article className="customers-kpi-card">
+          <span className="customers-kpi-icon rose"><AdminIcon name="fa-exclamation-triangle" /></span>
+          <div><span>Cần chú ý</span><strong>{stats.atRisk}</strong><p>{stats.newCustomers} khách chưa phát sinh đơn</p></div>
+        </article>
+      </section>
 
-            <div className="customers-stat-stack">
-              <article className="customers-stat-card">
-                <div className="customers-stat-icon"><AdminIcon name="fa-users" /></div>
-                <div><span>Tổng khách hàng</span><strong>{stats.total}</strong></div>
-              </article>
-              <article className="customers-stat-card">
-                <div className="customers-stat-icon is-vip"><AdminIcon name="fa-star" /></div>
-                <div><span>Khách VIP</span><strong>{stats.vip}</strong></div>
-              </article>
-              <article className="customers-stat-card">
-                <div className="customers-stat-icon is-new"><AdminIcon name="fa-user-plus" /></div>
-                <div><span>Khách mới</span><strong>{stats.newCustomers}</strong></div>
-              </article>
-              <article className="customers-stat-card">
-                <div className="customers-stat-icon is-risk"><AdminIcon name="fa-refresh" /></div>
-                <div><span>Cần kích hoạt lại</span><strong>{stats.atRisk}</strong></div>
-              </article>
-            </div>
-
-            <div className="customers-money-block">
-              <span className="customers-overline">Tổng chi tiêu</span>
-              <strong>{formatCurrency(stats.totalRevenue)}</strong>
-              <p>{stats.repeated} khách đã mua từ 2 đơn trở lên, {stats.tagged} hồ sơ đã có gắn tag.</p>
-            </div>
-          </section>
-
-          <section className="customers-side-panel customers-filter-panel">
-            <div className="customers-side-head">
-              <span className="customers-overline">Bộ lọc</span>
-              <strong>Lọc & tìm nhanh</strong>
-            </div>
-
-            <label className="customers-field">
-              <span>Tìm kiếm</span>
-              <div className="customers-search-wrap">
-                <AdminIcon name="fa-search" />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Tên, email, số điện thoại, tag..."
-                />
-              </div>
-            </label>
-
-            <label className="customers-field">
-              <span>Phân nhóm</span>
-              <select value={tierFilter} onChange={(event) => setTierFilter(event.target.value as 'all' | CustomerTier)}>
-                <option value="all">Tất cả phân nhóm</option>
-                {Object.entries(TIER_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="customers-field">
-              <span>Chăm sóc</span>
-              <select value={careFilter} onChange={(event) => setCareFilter(event.target.value as 'all' | CustomerCareStatus)}>
-                <option value="all">Tất cả trạng thái</option>
-                {CARE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-
-            <div className="customers-mini-note">
-              <strong>{filteredCustomers.length}</strong>
-              <span>khách phù hợp bộ lọc hiện tại</span>
-            </div>
-          </section>
-
-          <section className="customers-side-panel customers-care-panel">
-            <div className="customers-side-head">
-              <span className="customers-overline">Nhịp chăm sóc</span>
-              <strong>Nhịp chăm sóc</strong>
-            </div>
-
-            <div className="customers-care-list">
-              {careCounts.map((item) => (
-                <div key={item.value} className="customers-care-row">
-                  <div>
-                    <strong>{item.label}</strong>
-                    <p>{item.detail}</p>
-                  </div>
-                  <span>{item.count}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="customers-side-footnote">
-              <AdminIcon name="fa-circle-info" />
-              <span>{stats.noPhone} khách chưa có số điện thoại để chăm sóc trực tiếp.</span>
-            </div>
-          </section>
-        </aside>
-
-        <section className="customers-roster-stage">
-          <div className="customers-stage-head">
-            <div>
-              <span className="customers-overline">Danh sách</span>
-              <h2>Danh sách khách hàng</h2>
-              <p>Chọn một hồ sơ để mở panel chăm sóc chi tiết ở bên phải.</p>
-            </div>
-            <div className="customers-stage-badges">
-              <span>{filteredCustomers.length} kết quả</span>
-              <span>{stats.repeated} khách quay lại</span>
-            </div>
+      <section className="customers-segment-panel">
+        <div className="customers-segment-head">
+          <div>
+            <span className="customers-overline">Segmentation</span>
+            <h2>Phân khúc nhanh</h2>
           </div>
+          <span className="customers-segment-summary">Giá trị TB / khách mua hàng: <strong>{formatCurrency(stats.avgCustomerValue)}</strong></span>
+        </div>
+        <div className="customers-segment-tabs" role="tablist" aria-label="Lọc theo phân khúc khách hàng">
+          {TIER_OPTIONS.map((option) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tierFilter === option.value}
+              className={tierFilter === option.value ? 'is-active' : ''}
+              key={option.value}
+              onClick={() => setTierFilter(option.value)}
+            >
+              <AdminIcon name={option.icon} />
+              <span>{option.label}</span>
+              <strong>{tierCounts[option.value]}</strong>
+            </button>
+          ))}
+        </div>
+      </section>
 
-          <div className="customers-roster-list">
-            {filteredCustomers.length === 0 ? (
-              <div className="customers-roster-empty">
-                <div className="customers-roster-empty-icon">
-                  <AdminIcon name="fa-users" />
-                </div>
-                <strong>Không có khách hàng phù hợp</strong>
-                <p>Hãy thử nới bộ lọc hoặc tìm với từ khóa ngắn hơn để xem thêm hồ sơ.</p>
-              </div>
-            ) : (
-              filteredCustomers.map((customer) => {
-                const isSelected = selectedCustomerKey === getCustomerKey(customer);
-
-                return (
-                  <article
-                    key={customer.email}
-                    className={`customers-roster-card ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => setSelectedCustomerKey(getCustomerKey(customer))}
-                  >
-                    <div className="customers-roster-main">
-                      <div className="customers-roster-avatar">{getInitials(customer.name)}</div>
-
-                      <div className="customers-roster-copy">
-                        <div className="customers-roster-topline">
-                          <h3>{customer.name}</h3>
-                          <div className="customers-pill-row">
-                            <span className={`customer-tier-pill ${customer.tier}`}>{TIER_LABELS[customer.tier]}</span>
-                            <span className={`customer-care-pill ${customer.careStatus}`}>{getCareLabel(customer.careStatus)}</span>
-                          </div>
-                        </div>
-
-                        <div className="customers-meta-line">
-                          <span>{customer.email}</span>
-                          <span>{customer.phone || 'Chưa có số điện thoại'}</span>
-                          <span>{customer.lastOrderAt ? `Mua gần nhất ${formatDate(customer.lastOrderAt)}` : 'Chưa có đơn hàng'}</span>
-                        </div>
-
-                        <div className="customers-metric-grid">
-                          <div>
-                            <span>Tổng chi tiêu</span>
-                            <strong>{formatCurrency(customer.totalSpend)}</strong>
-                          </div>
-                          <div>
-                            <span>Đơn hàng</span>
-                            <strong>{customer.orderCount}</strong>
-                          </div>
-                          <div>
-                            <span>Đơn hợp lệ</span>
-                            <strong>{customer.completedOrders}</strong>
-                          </div>
-                          <div>
-                            <span>Giá trị TB</span>
-                            <strong>{formatCurrency(customer.averageOrderValue)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="customers-tag-strip">
-                          {(customer.tags.length > 0 ? customer.tags : customer.topCategories.slice(0, 2)).map((tag) => (
-                            <span key={tag} className="customers-tag-chip">{tag}</span>
-                          ))}
-                          {customer.tags.length === 0 && customer.topCategories.length === 0 ? (
-                            <span className="customers-tag-chip is-muted">Chưa có tag hoặc sở thích nổi bật</span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="customers-roster-actions">
-                      <button type="button" className="customers-card-btn" onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedCustomerKey(getCustomerKey(customer));
-                      }}>
-                        <AdminIcon name="fa-eye" />
-                        <span>Mở hồ sơ</span>
-                      </button>
-                      <button type="button" className="customers-card-btn is-danger" onClick={(event) => {
-                        event.stopPropagation();
-                        void handleDelete(customer);
-                      }}>
-                        <AdminIcon name="fa-ban" />
-                        <span>Khóa</span>
-                      </button>
-                    </div>
-                  </article>
-                );
-              })
+      <section className="customers-workspace">
+        <div className="customers-toolbar">
+          <div className="customers-search-box">
+            <AdminIcon name="fa-search" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm tên, email, số điện thoại hoặc tag..."
+              aria-label="Tìm khách hàng"
+            />
+            {search && (
+              <button type="button" className="customers-input-clear" onClick={() => setSearch('')} aria-label="Xóa từ khóa">
+                <AdminIcon name="fa-times" />
+              </button>
             )}
           </div>
-        </section>
 
-        <aside className="customers-dossier">
-          {selectedCustomer ? (
-            <>
-              <section className="customers-dossier-hero">
-                <div className="customers-dossier-avatar">{getInitials(selectedCustomer.name)}</div>
-                <div className="customers-dossier-copy">
-                  <span className="customers-overline">Hồ sơ khách hàng</span>
-                  <h2>{selectedCustomer.name}</h2>
-                  <p>{selectedCustomer.email} • {selectedCustomer.phone || 'Chưa có số điện thoại'}</p>
-                  <div className="customers-pill-row">
-                    <span className={`customer-tier-pill ${selectedCustomer.tier}`}>{TIER_LABELS[selectedCustomer.tier]}</span>
-                    <span className={`customer-care-pill ${selectedCustomer.careStatus}`}>{getCareLabel(selectedCustomer.careStatus)}</span>
+          <label className="customers-select-control">
+            <span>Tài khoản</span>
+            <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as AccountFilter)}>
+              <option value="all">Tất cả</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã khóa</option>
+            </select>
+          </label>
+
+          <label className="customers-select-control">
+            <span>Chăm sóc</span>
+            <select value={careFilter} onChange={(event) => setCareFilter(event.target.value as 'all' | CustomerCareStatus)}>
+              <option value="all">Tất cả</option>
+              {CARE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+
+          <label className="customers-select-control sort">
+            <span>Sắp xếp</span>
+            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+              {SORT_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+
+          <button type="button" className="customers-reset-button" onClick={resetFilters} disabled={activeFilterCount === 0}>
+            <AdminIcon name="fa-rotate-left" />
+            <span>Xóa lọc</span>
+            {activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}
+          </button>
+        </div>
+
+        <div className="customers-table-heading">
+          <div>
+            <span className="customers-overline">Customer directory</span>
+            <h2>{filteredCustomers.length} khách hàng</h2>
+            <p>Hiển thị {pagedCustomers.length} hồ sơ trên trang {page}/{totalPages}.</p>
+          </div>
+          <div className="customers-table-insights">
+            <span><i className="dot active" /> {stats.active} hoạt động</span>
+            <span><i className="dot vip" /> {stats.vip} VIP</span>
+            <span><i className="dot risk" /> {stats.atRisk} cần chú ý</span>
+          </div>
+        </div>
+
+        <div className="customers-table-wrap">
+          <table className="customers-table">
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Phân khúc</th>
+                <th>Đơn hàng</th>
+                <th>Giá trị vòng đời</th>
+                <th>Hoạt động gần nhất</th>
+                <th>Tài khoản</th>
+                <th aria-label="Thao tác" />
+              </tr>
+            </thead>
+            <tbody>
+              {pagedCustomers.map((customer, index) => (
+                <tr key={customer.id} style={{ '--row-delay': `${Math.min(index, 8) * 35}ms` } as React.CSSProperties}>
+                  <td data-label="Khách hàng">
+                    <div className="customers-identity-cell">
+                      <div className="customers-avatar">{getInitials(customer.name)}</div>
+                      <div>
+                        <button type="button" className="customers-name-button" onClick={() => setSelectedCustomerId(customer.id)}>
+                          {customer.name}
+                        </button>
+                        <span>{customer.email}</span>
+                        <small>{customer.phone || 'Chưa có số điện thoại'}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td data-label="Phân khúc">
+                    <div className="customers-tier-stack">
+                      <span className={`customers-tier-badge ${customer.tier}`}><AdminIcon name={customer.tier === 'vip' ? 'fa-star' : customer.tier === 'at-risk' ? 'fa-exclamation-triangle' : customer.tier === 'new' ? 'fa-user-plus' : 'fa-refresh'} />{TIER_LABELS[customer.tier]}</span>
+                      <small>{CARE_OPTIONS.find((item) => item.value === customer.careStatus)?.label}</small>
+                    </div>
+                  </td>
+                  <td data-label="Đơn hàng">
+                    <div className="customers-number-cell"><strong>{customer.orderCount}</strong><span>{customer.completedOrders} hoàn thành · {customer.cancelledOrders} hủy</span></div>
+                  </td>
+                  <td data-label="Giá trị vòng đời">
+                    <div className="customers-money-cell"><strong>{formatCurrency(customer.totalSpent)}</strong><span>AOV {formatCurrency(customer.averageOrderValue)}</span></div>
+                  </td>
+                  <td data-label="Hoạt động gần nhất">
+                    <div className="customers-activity-cell">
+                      <strong>{formatRelativeActivity(customer.lastOrderAt)}</strong>
+                      <span>{customer.lastOrderAt ? formatDate(customer.lastOrderAt) : `Tham gia ${formatDate(customer.createdAt)}`}</span>
+                    </div>
+                  </td>
+                  <td data-label="Tài khoản">
+                    <span className={`customers-account-badge ${customer.isActive ? 'active' : 'inactive'}`}>
+                      <i /> {customer.isActive ? 'Hoạt động' : 'Đã khóa'}
+                    </span>
+                  </td>
+                  <td className="customers-row-actions">
+                    <button type="button" onClick={() => setSelectedCustomerId(customer.id)} aria-label={`Xem ${customer.name}`} title="Xem hồ sơ">
+                      <AdminIcon name="fa-eye" />
+                    </button>
+                    <button
+                      type="button"
+                      className={customer.isActive ? 'danger' : 'success'}
+                      onClick={() => void toggleCustomerStatus(customer)}
+                      aria-label={customer.isActive ? `Khóa ${customer.name}` : `Mở ${customer.name}`}
+                      title={customer.isActive ? 'Khóa tài khoản' : 'Mở tài khoản'}
+                    >
+                      <AdminIcon name={customer.isActive ? 'fa-user-slash' : 'fa-circle-check'} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {pagedCustomers.length === 0 && (
+            <div className="customers-empty-state">
+              <span><AdminIcon name="fa-users" /></span>
+              <strong>Không tìm thấy khách hàng phù hợp</strong>
+              <p>Thử thay đổi từ khóa, phân khúc hoặc trạng thái tài khoản.</p>
+              <button type="button" onClick={resetFilters}>Xóa toàn bộ bộ lọc</button>
+            </div>
+          )}
+        </div>
+
+        {filteredCustomers.length > PAGE_SIZE && (
+          <nav className="customers-pagination" aria-label="Phân trang khách hàng">
+            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>
+              <AdminIcon name="fa-arrow-left" /> Trước
+            </button>
+            <div>
+              {Array.from({ length: totalPages }, (_, index) => index + 1)
+                .filter((pageNumber) => pageNumber === 1 || pageNumber === totalPages || Math.abs(pageNumber - page) <= 1)
+                .map((pageNumber, index, visible) => (
+                  <span key={pageNumber}>
+                    {index > 0 && pageNumber - visible[index - 1] > 1 && <i>…</i>}
+                    <button type="button" className={pageNumber === page ? 'is-active' : ''} onClick={() => setPage(pageNumber)}>{pageNumber}</button>
+                  </span>
+                ))}
+            </div>
+            <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>
+              Sau <AdminIcon name="fa-arrow-right" />
+            </button>
+          </nav>
+        )}
+      </section>
+
+      {selectedCustomerId && selectedCustomer && createPortal(
+        <div className="customers-drawer-layer" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSelectedCustomerId(null);
+        }}>
+          <aside className="customers-drawer" role="dialog" aria-modal="true" aria-labelledby="customer-drawer-title">
+            <header className="customers-drawer-header">
+              <div className="customers-drawer-profile">
+                <div className="customers-drawer-avatar">{getInitials(selectedCustomer.name)}</div>
+                <div>
+                  <span className="customers-overline">Customer profile</span>
+                  <h2 id="customer-drawer-title">{selectedCustomer.name}</h2>
+                  <div className="customers-drawer-badges">
+                    <span className={`customers-tier-badge ${selectedCustomer.tier}`}>{TIER_LABELS[selectedCustomer.tier]}</span>
+                    <span className={`customers-account-badge ${selectedCustomer.isActive ? 'active' : 'inactive'}`}><i />{selectedCustomer.isActive ? 'Hoạt động' : 'Đã khóa'}</span>
                   </div>
+                </div>
+              </div>
+              <button ref={closeButtonRef} type="button" className="customers-drawer-close" onClick={() => setSelectedCustomerId(null)} aria-label="Đóng hồ sơ khách hàng">
+                <AdminIcon name="fa-times" />
+              </button>
+            </header>
+
+            <div className="customers-drawer-body">
+              <section className="customers-contact-strip">
+                <a href={`mailto:${selectedCustomer.email}`}><AdminIcon name="fa-envelope" /><span>Email</span></a>
+                {selectedCustomer.phone ? <a href={`tel:${selectedCustomer.phone}`}><AdminIcon name="fa-user" /><span>Gọi khách</span></a> : <span className="is-disabled"><AdminIcon name="fa-user" /><span>Chưa có SĐT</span></span>}
+                <Link to={`/admin/orders?search=${encodeURIComponent(selectedCustomer.email)}`}><AdminIcon name="fa-receipt" /><span>Xem đơn</span></Link>
+              </section>
+
+              <section className="customers-drawer-section">
+                <div className="customers-drawer-section-head">
+                  <div><span className="customers-overline">Customer value</span><h3>Giá trị & hành vi mua hàng</h3></div>
+                  {detailLoading && <span className="customers-detail-loading"><AdminIcon name="fa-spinner fa-spin" /> Đang cập nhật</span>}
+                </div>
+                <div className="customers-detail-kpis">
+                  <article><span>LTV</span><strong>{formatCurrency(drawerCustomer?.totalSpent || 0)}</strong></article>
+                  <article><span>Tổng đơn</span><strong>{drawerCustomer?.orderCount || 0}</strong></article>
+                  <article><span>Hoàn thành</span><strong>{drawerCustomer?.completedOrders || 0}</strong></article>
+                  <article><span>AOV</span><strong>{formatCurrency((drawerCustomer?.completedOrders || 0) > 0 ? (drawerCustomer?.totalSpent || 0) / (drawerCustomer?.completedOrders || 1) : 0)}</strong></article>
+                </div>
+                <div className="customers-lifecycle-grid">
+                  <div><span>Tham gia</span><strong>{formatDate(selectedCustomer.createdAt)}</strong></div>
+                  <div><span>Đơn đầu tiên</span><strong>{drawerCustomer?.firstOrderAt ? formatDate(drawerCustomer.firstOrderAt) : 'Chưa có'}</strong></div>
+                  <div><span>Đơn gần nhất</span><strong>{drawerCustomer?.lastOrderAt ? formatDate(drawerCustomer.lastOrderAt) : 'Chưa có'}</strong></div>
+                  <div><span>Trạng thái gần nhất</span><strong>{drawerCustomer?.lastOrderStatus ? ORDER_STATUS_LABELS[drawerCustomer.lastOrderStatus] : 'Chưa có'}</strong></div>
                 </div>
               </section>
 
-              <section className="customers-dossier-card">
-                <div className="customers-dossier-head">
-                  <div>
-                    <span className="customers-overline">Tổng quan</span>
-                    <h3>Tổng quan hồ sơ</h3>
-                  </div>
-                  <span className="customers-rank-badge">#{selectedRank || '--'} theo doanh thu</span>
+              <section className="customers-drawer-section">
+                <div className="customers-drawer-section-head">
+                  <div><span className="customers-overline">CRM notes</span><h3>Chăm sóc khách hàng</h3></div>
+                  <span className="customers-local-note">Ghi chú nội bộ</span>
                 </div>
-
-                <div className="customers-dossier-metrics">
-                  <article><span>Tổng chi tiêu</span><strong>{formatCurrency(selectedCustomer.totalSpend)}</strong></article>
-                  <article><span>Đơn hàng</span><strong>{selectedCustomer.orderCount}</strong></article>
-                  <article><span>Tỷ trọng doanh thu</span><strong>{selectedRevenueShare}%</strong></article>
-                  <article><span>Tham gia</span><strong>{selectedCustomer.createdAt ? formatDate(selectedCustomer.createdAt) : '--'}</strong></article>
-                </div>
-
-                <div className="customers-detail-list">
-                  <div><span>Đơn đầu tiên</span><strong>{selectedCustomer.firstOrderAt ? formatDate(selectedCustomer.firstOrderAt) : '--'}</strong></div>
-                  <div><span>Đơn gần nhất</span><strong>{selectedCustomer.lastOrderAt ? formatDate(selectedCustomer.lastOrderAt) : '--'}</strong></div>
-                  <div><span>Trạng thái gần nhất</span><strong>{selectedCustomer.lastOrderStatus ? ORDER_STATUS_LABELS[selectedCustomer.lastOrderStatus] : 'Chưa có'}</strong></div>
-                  <div><span>Lần cập nhật hồ sơ</span><strong>{selectedProfileUpdatedAt ? formatDate(selectedProfileUpdatedAt) : 'Chưa cập nhật'}</strong></div>
-                </div>
-              </section>
-
-              <section className="customers-dossier-card">
-                <div className="customers-dossier-head">
-                  <div>
-                    <span className="customers-overline">Chăm sóc</span>
-                    <h3>Chăm sóc & ghi chú</h3>
-                  </div>
-                </div>
-
-                <label className="customers-field">
+                <label className="customers-drawer-field">
                   <span>Trạng thái chăm sóc</span>
                   <select value={detailCareStatus} onChange={(event) => setDetailCareStatus(event.target.value as CustomerCareStatus)}>
-                    {CARE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
+                    {CARE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
-                  <small>{getCareDetail(detailCareStatus)}</small>
+                  <small>{CARE_OPTIONS.find((option) => option.value === detailCareStatus)?.description}</small>
                 </label>
-
-                <label className="customers-field">
-                  <span>Tags nội bộ</span>
-                  <input
-                    value={detailTags}
-                    onChange={(event) => setDetailTags(event.target.value)}
-                    placeholder="vip, quay lại, cần gọi lại"
-                  />
+                <label className="customers-drawer-field">
+                  <span>Tags</span>
+                  <input value={detailTags} onChange={(event) => setDetailTags(event.target.value)} placeholder="vip, thích sale, cần gọi lại..." />
                 </label>
-
-                <label className="customers-field">
-                  <span>Ghi chú chăm sóc</span>
-                  <textarea
-                    rows={5}
-                    value={detailNote}
-                    onChange={(event) => setDetailNote(event.target.value)}
-                    placeholder="Ghi chú về nhu cầu, ưu tiên, phản hồi, dịp cần liên hệ lại..."
-                  />
+                <label className="customers-drawer-field">
+                  <span>Ghi chú</span>
+                  <textarea rows={4} value={detailNote} onChange={(event) => setDetailNote(event.target.value)} placeholder="Nhu cầu, phản hồi, lưu ý cho lần chăm sóc tiếp theo..." />
                 </label>
-
-                <div className="customers-dossier-actions">
-                  <button type="button" className="customers-primary-btn" onClick={saveSelectedCustomerProfile}>
-                    <AdminIcon name="fa-save" />
-                    <span>Lưu hồ sơ</span>
-                  </button>
-                  <button type="button" className="customers-ghost-btn is-danger" onClick={() => void handleDelete(selectedCustomer)}>
-                    <AdminIcon name="fa-ban" />
-                    <span>Khóa khách hàng</span>
-                  </button>
-                </div>
+                <button type="button" className="customers-save-care" onClick={saveCustomerCare}>
+                  <AdminIcon name="fa-save" /> Lưu ghi chú chăm sóc
+                </button>
               </section>
 
-              <section className="customers-dossier-card">
-                <div className="customers-dossier-head">
-                  <div>
-                    <span className="customers-overline">Sở thích</span>
-                    <h3>Sở thích & danh mục</h3>
-                  </div>
+              <section className="customers-drawer-section">
+                <div className="customers-drawer-section-head">
+                  <div><span className="customers-overline">Recent orders</span><h3>Đơn hàng gần đây</h3></div>
+                  <Link to={`/admin/orders?search=${encodeURIComponent(selectedCustomer.email)}`} className="customers-text-link">Xem tất cả <AdminIcon name="fa-arrow-right" /></Link>
                 </div>
-
-                <div className="customers-interest-block">
-                  <span>Danh mục mua nhiều</span>
-                  <div className="customer-tag-list">
-                    {(selectedCustomer.topCategories.length > 0 ? selectedCustomer.topCategories : ['Chưa có dữ liệu']).map((category) => (
-                      <span key={category} className="customer-tag">{category}</span>
-                    ))}
-                  </div>
+                <div className="customers-recent-orders">
+                  {detailLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => <div className="customers-order-skeleton dash-skeleton" key={index} />)
+                  ) : detail?.recentOrders?.length ? (
+                    detail.recentOrders.map((order) => (
+                      <Link to={`/admin/orders?search=${encodeURIComponent(order.code)}`} className="customers-order-row" key={order.id}>
+                        <div><strong>#{order.code}</strong><span>{formatDate(order.createdAt)} · {order.paymentMethod}</span></div>
+                        <div><strong>{formatCurrency(order.total)}</strong><span className={`customers-order-status ${order.status}`}>{ORDER_STATUS_LABELS[order.status]}</span></div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="customers-no-orders"><AdminIcon name="fa-receipt" /><span>Khách hàng chưa phát sinh đơn.</span></div>
+                  )}
                 </div>
-
-                <div className="customers-interest-block">
-                  <span>Sản phẩm mua nhiều</span>
-                  <div className="customer-tag-list">
-                    {(selectedCustomer.purchasedProducts.length > 0 ? selectedCustomer.purchasedProducts : ['Chưa có dữ liệu']).map((product) => (
-                      <span key={product} className="customer-tag subtle">{product}</span>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedCustomer.tags.length > 0 ? (
-                  <div className="customers-interest-block">
-                    <span>Tags đã lưu</span>
-                    <div className="customer-tag-list">
-                      {selectedCustomer.tags.map((tag) => (
-                        <span key={tag} className="customer-tag info">{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
               </section>
+            </div>
 
-              <section className="customers-dossier-card">
-                <div className="customers-dossier-head">
-                  <div>
-                    <span className="customers-overline">Lịch sử đơn</span>
-                    <h3>Lịch sử đơn hàng</h3>
-                  </div>
-                </div>
-
-                {selectedCustomer.orders.length === 0 ? (
-                  <div className="customers-dossier-empty">
-                    <AdminIcon name="fa-shopping-bag" />
-                    <p>Khách hàng này chưa có đơn hàng nào.</p>
-                  </div>
-                ) : (
-                  <div className="customer-order-list">
-                    {selectedCustomer.orders.map((order) => (
-                      <article key={order.id} className="customer-order-item">
-                        <div>
-                          <strong>#{order.id}</strong>
-                          <span>{formatDate(order.createdAt)} • {order.items.length} sản phẩm</span>
-                        </div>
-                        <div className="customer-order-meta">
-                          <span className={`customer-order-status ${order.status}`}>{ORDER_STATUS_LABELS[order.status]}</span>
-                          <strong>{formatCurrency(order.total)}</strong>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          ) : (
-            <section className="customers-dossier-empty">
-              <AdminIcon name="fa-user" />
-              <strong>Chưa có hồ sơ nào được chọn</strong>
-              <p>Hãy chọn một khách hàng trong danh sách để mở dossier chăm sóc chi tiết.</p>
-            </section>
-          )}
-        </aside>
-      </div>
+            <footer className="customers-drawer-footer">
+              <div><span>Tài khoản</span><strong>{selectedCustomer.isActive ? 'Đang hoạt động bình thường' : 'Đang bị khóa'}</strong></div>
+              <button
+                type="button"
+                className={selectedCustomer.isActive ? 'danger' : 'success'}
+                onClick={() => void toggleCustomerStatus(selectedCustomer)}
+              >
+                <AdminIcon name={selectedCustomer.isActive ? 'fa-user-slash' : 'fa-circle-check'} />
+                {selectedCustomer.isActive ? 'Khóa tài khoản' : 'Mở tài khoản'}
+              </button>
+            </footer>
+          </aside>
+        </div>,
+        document.body,
       )}
     </div>
   );
