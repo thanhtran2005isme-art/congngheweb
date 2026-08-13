@@ -48,3 +48,18 @@ public class ChiTietDonHang
     public string MauSac { get; set; } = string.Empty;
     public int SoLuong { get; set; }
 }
+
+[Table("YeuCauDoiTra")]
+public class YeuCauDoiTra
+{
+    public int Id { get; set; }
+    [Column("DonHangId")] public int DonHangId { get; set; }
+    [Column("NguoiDungId")] public int NguoiDungId { get; set; }
+    [Column("LyDo")] public string LyDo { get; set; } = string.Empty;
+    [Column("GhiChu")] public string? GhiChu { get; set; }
+    [Column("TrangThai")] public string TrangThai { get; set; } = "pending";
+    [Column("PhanHoiAdmin")] public string? PhanHoiAdmin { get; set; }
+    [Column("NgayTao")] public DateTime NgayTao { get; set; } = DateTime.UtcNow;
+    [Column("NgayCapNhat")] public DateTime? NgayCapNhat { get; set; }
+    public DonHang? DonHang { get; set; }
+}
