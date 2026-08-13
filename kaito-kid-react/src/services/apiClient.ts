@@ -32,7 +32,6 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Gắn JWT token đúng theo ngữ cảnh (staff vs customer)
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Endpoint admin/staff → token nhân viên; còn lại → token khách hàng
     const token = isStaffRequest(config.url)
       ? localStorage.getItem(STAFF_ACCESS_TOKEN_KEY)
       : tokenStorage.getAccessToken();
@@ -41,9 +40,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor - Handle 401 và refresh token
@@ -55,11 +52,8 @@ let failedQueue: Array<{
 
 const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
+    if (error) prom.reject(error);
+    else prom.resolve(token);
   });
   failedQueue = [];
 };
@@ -67,6 +61,12 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Network/CORS failures can occasionally arrive without a request config.
+    // Preserve the original Axios error instead of throwing again inside the interceptor.
+    if (!error.config) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // Request thuộc khu vực nhân viên dùng session riêng.
@@ -82,7 +82,6 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Bỏ qua redirect khi đang ở trang /login hoặc khi đó là request login/register/refresh
     const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register';
     const isAuthRequest = originalRequest.url?.includes('/api/auth/login') ||
                           originalRequest.url?.includes('/api/auth/register') ||
@@ -99,9 +98,7 @@ apiClient.interceptors.response.use(
             }
             return apiClient(originalRequest);
           })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
@@ -110,25 +107,17 @@ apiClient.interceptors.response.use(
       const refreshToken = tokenStorage.getRefreshToken();
       if (!refreshToken) {
         tokenStorage.clearAll();
-        // Chỉ redirect nếu không đang ở trang login
-        if (!isAuthPage) {
-          window.location.href = '/login';
-        }
+        if (!isAuthPage) window.location.href = '/login';
         isRefreshing = false;
         return Promise.reject(error);
       }
 
       try {
-        const response = await axios.post(`${BASE_URL}/api/auth/refresh`, {
-          refreshToken,
-        });
-
+        const response = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken });
         const { accessToken, refreshToken: newRefreshToken } = response.data;
 
         tokenStorage.setAccessToken(accessToken);
-        if (newRefreshToken) {
-          tokenStorage.setRefreshToken(newRefreshToken);
-        }
+        if (newRefreshToken) tokenStorage.setRefreshToken(newRefreshToken);
 
         processQueue(null, accessToken);
 
@@ -139,10 +128,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
         tokenStorage.clearAll();
-        // Chỉ redirect nếu không đang ở trang login
-        if (!isAuthPage) {
-          window.location.href = '/login';
-        }
+        if (!isAuthPage) window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -150,7 +136,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;
