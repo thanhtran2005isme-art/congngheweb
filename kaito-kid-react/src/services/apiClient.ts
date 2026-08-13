@@ -13,6 +13,7 @@ console.log('[API Client] VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL
 // Khóa lưu token nhân viên (khớp với StaffAuthContext). Để hằng số ở đây tránh circular import.
 const STAFF_ACCESS_TOKEN_KEY = 'staff_access_token';
 const STAFF_REFRESH_TOKEN_KEY = 'staff_refresh_token';
+const STAFF_AUTH_EXPIRED_EVENT = 'staff-auth-expired';
 
 /** Request thuộc khu vực nhân viên (admin/staff) → dùng token nhân viên. */
 function isStaffRequest(url?: string): boolean {
@@ -68,9 +69,16 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Request thuộc khu vực nhân viên: KHÔNG dùng luồng refresh token khách.
-    // Để StaffAuthContext/AdminProtectedRoute tự xử lý (tránh xóa nhầm token khách + redirect sai trang).
+    // Request thuộc khu vực nhân viên dùng session riêng.
+    // Nếu token staff hết hạn/không hợp lệ, xóa ngay session để AdminProtectedRoute
+    // đưa người dùng về /admin/login. Không áp dụng cho chính request đăng nhập sai mật khẩu.
     if (isStaffRequest(originalRequest.url)) {
+      const isStaffLoginRequest = originalRequest.url?.includes('/api/auth/staff/login');
+      if (error.response?.status === 401 && !isStaffLoginRequest) {
+        localStorage.removeItem(STAFF_ACCESS_TOKEN_KEY);
+        localStorage.removeItem(STAFF_REFRESH_TOKEN_KEY);
+        window.dispatchEvent(new Event(STAFF_AUTH_EXPIRED_EVENT));
+      }
       return Promise.reject(error);
     }
 
