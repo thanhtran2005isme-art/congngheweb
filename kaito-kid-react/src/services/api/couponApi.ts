@@ -1,3 +1,4 @@
+import axios from 'axios';
 import apiClient, { getErrorMessage } from '../apiClient';
 import type { ApiResponse } from '../../types/api';
 
@@ -100,6 +101,12 @@ export const couponApi = {
       const response = await apiClient.get<AvailableCouponDTO[]>('/api/coupons/available');
       return { success: true, data: response.data };
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return {
+          success: false,
+          error: 'API.Customer chưa có endpoint /api/coupons/available. Hãy git pull và restart API.Customer (port 5265).',
+        };
+      }
       return { success: false, error: getErrorMessage(error) };
     }
   },
