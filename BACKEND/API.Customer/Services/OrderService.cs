@@ -26,27 +26,37 @@ public class OrderService(
             throw new InvalidOperationException("Giỏ hàng trống");
 
         var subtotal = cartItems.Sum(c => c.Product.Price * c.Quantity);
+        var normalizedCouponCode = string.IsNullOrWhiteSpace(dto.CouponCode)
+            ? null
+            : dto.CouponCode.Trim().ToUpperInvariant();
         decimal discount = 0;
+        Coupon? appliedCoupon = null;
 
-        if (!string.IsNullOrEmpty(dto.CouponCode))
+        if (normalizedCouponCode is not null)
         {
             var couponResult = await couponService.ValidateAsync(new CouponValidateDTO
             {
-                Code = dto.CouponCode,
+                Code = normalizedCouponCode,
                 OrderAmount = subtotal
             });
-            if (couponResult.IsValid)
-                discount = couponResult.DiscountAmount;
+
+            if (!couponResult.IsValid)
+                throw new InvalidOperationException(couponResult.Message ?? "Mã giảm giá không hợp lệ");
+
+            discount = couponResult.DiscountAmount;
+            appliedCoupon = await db.Coupons
+                .FirstOrDefaultAsync(c => c.Code.ToUpper() == normalizedCouponCode);
+            if (appliedCoupon is null || !appliedCoupon.IsActive)
+                throw new InvalidOperationException("Mã giảm giá không còn khả dụng");
+            if (appliedCoupon.UsageLimit > 0 && appliedCoupon.UsedCount >= appliedCoupon.UsageLimit)
+                throw new InvalidOperationException("Mã giảm giá vừa hết lượt sử dụng");
         }
 
-        // Combo discount: 10% nếu giỏ có ≥2 SP khác nhau cùng category
         var combo = await comboService.EvaluateForItemsAsync(cartItems);
         var comboDiscount = combo.Eligible ? combo.Discount : 0m;
-
-        var totalDiscount = discount + comboDiscount;
+        var totalDiscount = Math.Min(subtotal, Math.Max(0m, discount + comboDiscount));
         var shippingFee = dto.ShippingFee < 0 ? 0 : dto.ShippingFee;
         var total = subtotal - totalDiscount + shippingFee;
-        if (total < 0) total = 0;
 
         var orderCode = $"KK-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
 
@@ -62,12 +72,10 @@ public class OrderService(
             ShippingFee = shippingFee,
             Discount = totalDiscount,
             Total = total,
-            CouponCode = dto.CouponCode,
+            CouponCode = normalizedCouponCode,
             PaymentMethod = dto.PaymentMethod,
             Note = dto.Note,
             ShippingProvider = string.IsNullOrWhiteSpace(dto.ShippingProvider) ? "mock" : dto.ShippingProvider,
-            // Đơn ATM/VietQR: 15 phút để khách chuyển khoản, hết giờ tự hủy.
-            // Đơn COD: PaymentExpiresAt = null (không cần thanh toán trước).
             PaymentExpiresAt = string.Equals(dto.PaymentMethod, "ATM", StringComparison.OrdinalIgnoreCase)
                 ? DateTime.UtcNow.AddMinutes(15)
                 : null,
@@ -87,7 +95,6 @@ public class OrderService(
 
         db.Orders.Add(order);
 
-        // Trừ stock thật + giải phóng phần Reserved trên variant (đã được giữ lúc add to cart)
         var variantKeys = cartItems
             .Select(c => new { c.ProductId, c.Size, c.Color })
             .Distinct()
@@ -104,7 +111,6 @@ public class OrderService(
             if (item.Product.Stock <= 0)
                 item.Product.Status = "out-of-stock";
 
-            // Variant: trừ Stock thật, trả Reserved (đã giữ trước đó)
             var v = variants.FirstOrDefault(x =>
                 x.ProductId == item.ProductId && x.Size == item.Size && x.Color == item.Color);
             if (v != null)
@@ -117,20 +123,13 @@ public class OrderService(
         }
 
         db.CartItems.RemoveRange(cartItems);
-
-        if (!string.IsNullOrEmpty(dto.CouponCode))
-        {
-            var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == dto.CouponCode);
-            if (coupon is not null) coupon.UsedCount++;
-        }
+        if (appliedCoupon is not null) appliedCoupon.UsedCount++;
 
         await db.SaveChangesAsync();
 
-        // Lưu lịch sử "đã đặt hàng"
         await shippingService.AppendHistoryAsync(order.Id, "order_placed",
             $"Đơn hàng {order.OrderCode} đã được tạo", "Hệ thống KaitoKid");
 
-        // COD → tạo vận đơn ngay; ATM/online → đợi xác nhận thanh toán
         if (string.Equals(order.PaymentMethod, "COD", StringComparison.OrdinalIgnoreCase))
         {
             try
@@ -146,7 +145,6 @@ public class OrderService(
             }
         }
 
-        // Email xác nhận đơn — fire and forget, không chặn flow
         var frontendUrl = (config["Frontend:BaseUrl"] ?? "http://localhost:5173").TrimEnd('/');
         var trackingUrl = $"{frontendUrl}/orders";
         _ = emailService.SendAsync(order.CustomerEmail,
@@ -169,7 +167,6 @@ public class OrderService(
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
-        // Lấy tất cả review (orderId, productId) của user trong 1 query
         var orderIds = orders.Select(o => o.Id).ToList();
         var reviewedSet = await db.Reviews
             .Where(r => r.UserId == userId && orderIds.Contains(r.OrderId))
@@ -208,8 +205,6 @@ public class OrderService(
 
         if (order is null) return false;
 
-        // Cho phép hủy khi đơn còn trong giai đoạn chờ xử lý hoặc shipper CHƯA lấy hàng.
-        // Một khi đã "picked" (shipper đã lấy hàng từ shop) thì không cho hủy nữa.
         var canCancel = order.Status is "pending" or "confirmed"
                         && order.ShippingStatus is null or "ready_to_pick" or "picking";
         if (!canCancel) return false;
@@ -218,10 +213,7 @@ public class OrderService(
         order.ShippingStatus = "cancelled";
         order.UpdatedAt = DateTime.UtcNow;
 
-        // Hoàn kho cả 2 cấp (product + variant) — fix BUG #1
         await InventoryRestoreHelper.RestoreStockAsync(db, order.Items);
-
-        // Hoàn lại lượt dùng coupon nếu đơn có áp mã
         await RestoreCouponUsageAsync(order.CouponCode);
 
         await db.SaveChangesAsync();
@@ -230,14 +222,11 @@ public class OrderService(
         return true;
     }
 
-    /// <summary>
-    /// Hoàn lại 1 lượt dùng coupon khi đơn bị huỷ (fix BUG #2).
-    /// Không cho UsedCount âm.
-    /// </summary>
     private async Task RestoreCouponUsageAsync(string? couponCode)
     {
-        if (string.IsNullOrEmpty(couponCode)) return;
-        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == couponCode);
+        if (string.IsNullOrWhiteSpace(couponCode)) return;
+        var normalized = couponCode.Trim().ToUpperInvariant();
+        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code.ToUpper() == normalized);
         if (coupon is not null && coupon.UsedCount > 0)
             coupon.UsedCount--;
     }
@@ -280,4 +269,4 @@ public class OrderService(
         }).ToList()
     };
 }
-// v1.3: Tich hop IShippingService — luu phi/provider, tao van don khi COD
+// v1.4: Coupon is revalidated and consumed only when it is actually applied.
