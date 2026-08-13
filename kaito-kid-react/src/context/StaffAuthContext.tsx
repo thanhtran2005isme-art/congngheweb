@@ -5,6 +5,7 @@ import { staffAuthApi, type StaffProfile } from '../services/api/staffAuthApi';
 
 const STAFF_TOKEN_KEY = 'staff_access_token';
 const STAFF_REFRESH_KEY = 'staff_refresh_token';
+export const STAFF_AUTH_EXPIRED_EVENT = 'staff-auth-expired';
 
 interface StaffAuthContextType {
   staff: StaffProfile | null;
@@ -18,6 +19,11 @@ interface StaffAuthContextType {
 
 const StaffAuthContext = createContext<StaffAuthContextType | null>(null);
 
+function clearStaffSession() {
+  localStorage.removeItem(STAFF_TOKEN_KEY);
+  localStorage.removeItem(STAFF_REFRESH_KEY);
+}
+
 export function StaffAuthProvider({ children }: { children: ReactNode }) {
   const [staff, setStaff] = useState<StaffProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,13 +35,12 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+
     const r = await staffAuthApi.getMe();
     if (r.success && r.data) {
       setStaff(r.data);
     } else {
-      // Token hỏng → xóa
-      localStorage.removeItem(STAFF_TOKEN_KEY);
-      localStorage.removeItem(STAFF_REFRESH_KEY);
+      clearStaffSession();
       setStaff(null);
     }
     setLoading(false);
@@ -43,6 +48,17 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, []);
+
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      clearStaffSession();
+      setStaff(null);
+      setLoading(false);
+    };
+
+    window.addEventListener(STAFF_AUTH_EXPIRED_EVENT, handleExpiredSession);
+    return () => window.removeEventListener(STAFF_AUTH_EXPIRED_EVENT, handleExpiredSession);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -57,8 +73,7 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem(STAFF_TOKEN_KEY);
-    localStorage.removeItem(STAFF_REFRESH_KEY);
+    clearStaffSession();
     setStaff(null);
   };
 
