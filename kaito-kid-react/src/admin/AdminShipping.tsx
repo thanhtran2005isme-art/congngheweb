@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
+
+import AdminIcon from '../components/admin/AdminIcon';
 import {
   adminShippingApi,
   type AdminShippingConfig,
-  type KaitoKidBranch,
   type AdminShippingHistoryItem,
   type AdminShippingOverview,
-  type ShippingTestResult,
-  type GhnProvinceItem,
   type GhnDistrictItem,
+  type GhnProvinceItem,
+  type KaitoKidBranch,
+  type ShippingTestResult,
 } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/format';
+import '../styles/admin/admin-shipping.css';
 
-type TabKey = 'config' | 'history' | 'overview';
+type TabKey = 'overview' | 'history' | 'config';
+type ProviderKey = 'mock' | 'ghn' | 'ghtk';
 
 const STATUS_LABEL: Record<string, string> = {
   ready_to_pick: 'Chờ lấy hàng',
@@ -25,772 +29,720 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const PROVIDER_LABEL: Record<string, string> = {
-  mock: 'KaitoKid Mock',
+  mock: 'KaitoKid nội bộ',
   ghn: 'Giao Hàng Nhanh',
   ghtk: 'Giao Hàng Tiết Kiệm',
 };
 
+const STATUS_COLORS: Record<string, string> = {
+  ready_to_pick: '#d97706',
+  picking: '#b45309',
+  picked: '#2563eb',
+  delivering: '#7c3aed',
+  delivered: '#0f766e',
+  cancelled: '#b42318',
+  order_placed: '#64748b',
+};
+
+const PROVIDER_COLORS: Record<string, string> = {
+  mock: '#5b5bd6',
+  ghn: '#e66b24',
+  ghtk: '#159447',
+};
+
+function percent(value: number, total: number) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function providerEnabled(config: AdminShippingConfig | null, provider: ProviderKey) {
+  if (!config) return false;
+  if (provider === 'mock') return config.mockEnabled;
+  if (provider === 'ghn') return config.ghnEnabled;
+  return config.ghtkEnabled;
+}
+
 export default function AdminShipping() {
-  const [tab, setTab] = useState<TabKey>('config');
+  const [tab, setTab] = useState<TabKey>('overview');
+  const [summaryConfig, setSummaryConfig] = useState<AdminShippingConfig | null>(null);
+  const [summaryOverview, setSummaryOverview] = useState<AdminShippingOverview | null>(null);
+  const [syncing, setSyncing] = useState(true);
+
+  const loadSummary = useCallback(async (silent = false) => {
+    if (!silent) setSyncing(true);
+    const [configResult, overviewResult] = await Promise.all([
+      adminShippingApi.getConfig(),
+      adminShippingApi.getOverview(),
+    ]);
+
+    if (configResult.success && configResult.data) setSummaryConfig(configResult.data);
+    if (overviewResult.success && overviewResult.data) setSummaryOverview(overviewResult.data);
+    if (!silent && (!configResult.success || !overviewResult.success)) {
+      toast.error(configResult.error || overviewResult.error || 'Không thể đồng bộ dữ liệu vận chuyển');
+    }
+    setSyncing(false);
+  }, []);
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
+
+  const activeProviders = summaryConfig
+    ? [summaryConfig.mockEnabled, summaryConfig.ghnEnabled, summaryConfig.ghtkEnabled].filter(Boolean).length
+    : 0;
+  const activeBranches = summaryConfig?.kaitoKidBranches?.filter((branch) => branch.active).length || 0;
+  const totalBranches = summaryConfig?.kaitoKidBranches?.length || 0;
+  const shippingRate = percent(summaryOverview?.totalShipped || 0, summaryOverview?.totalOrders || 0);
+  const delivered = summaryOverview?.byStatus.find((item) => item.status === 'delivered')?.count || 0;
+  const delivering = summaryOverview?.byStatus
+    .filter((item) => ['ready_to_pick', 'picking', 'picked', 'delivering'].includes(item.status))
+    .reduce((sum, item) => sum + item.count, 0) || 0;
+
+  const tabs: Array<{ key: TabKey; label: string; icon: string; count: number }> = [
+    { key: 'overview', label: 'Command Center', icon: 'fa-chart-pie', count: summaryOverview?.totalShipped || 0 },
+    { key: 'history', label: 'Lịch sử vận đơn', icon: 'fa-route', count: delivering },
+    { key: 'config', label: 'Cấu hình & kết nối', icon: 'fa-sliders', count: activeProviders },
+  ];
 
   return (
-    <div className="admin-page">
-      <div className="admin-page-header" style={{ marginBottom: 20 }}>
-        <h1>
-          <i className="fa fa-truck" style={{ marginRight: 12, color: '#ec4899' }}></i>
-          Quản lý đơn vị vận chuyển
-        </h1>
-        <p style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>
-          Cấu hình các nhà vận chuyển, theo dõi vận đơn và xem báo cáo tổng quan.
-        </p>
-      </div>
+    <div className="shipping-v2">
+      <header className="shipping-page-header">
+        <div className="shipping-page-copy">
+          <span className="shipping-overline"><AdminIcon name="fa-truck-fast" /> Shipping operations</span>
+          <h1>Vận chuyển</h1>
+          <p>Điều hành nhà vận chuyển, giám sát vận đơn, cấu hình kho lấy hàng và kiểm tra kết nối API tại một nơi.</p>
+        </div>
+        <div className="shipping-page-actions">
+          <button type="button" className="shipping-button" onClick={() => setTab('history')}>
+            <AdminIcon name="fa-clock-rotate-left" />
+            <span>Xem vận đơn</span>
+          </button>
+          <button type="button" className="shipping-button primary" onClick={() => void loadSummary()} disabled={syncing}>
+            <AdminIcon name={`fa-rotate${syncing ? ' fa-spin' : ''}`} />
+            <span>{syncing ? 'Đang đồng bộ' : 'Đồng bộ dữ liệu'}</span>
+          </button>
+        </div>
+      </header>
 
-      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #e5e7eb', marginBottom: 20 }}>
-        {([
-          { key: 'config', label: 'Cấu hình & Test', icon: 'fa-cog' },
-          { key: 'history', label: 'Lịch sử vận đơn', icon: 'fa-list-alt' },
-          { key: 'overview', label: 'Tổng quan', icon: 'fa-chart-pie' },
-        ] as { key: TabKey; label: string; icon: string }[]).map((t) => (
+      <section className="shipping-kpi-grid" aria-label="Tổng quan vận chuyển">
+        <article className="shipping-kpi-card">
+          <span className="shipping-kpi-icon"><AdminIcon name="fa-box" /></span>
+          <div><span>Tổng đơn hàng</span><strong>{summaryOverview?.totalOrders ?? '—'}</strong><p>Nguồn đơn trên toàn hệ thống</p></div>
+        </article>
+        <article className="shipping-kpi-card">
+          <span className="shipping-kpi-icon blue"><AdminIcon name="fa-truck" /></span>
+          <div><span>Đã phát sinh vận đơn</span><strong>{summaryOverview?.totalShipped ?? '—'}</strong><p>{shippingRate}% tổng số đơn</p></div>
+        </article>
+        <article className="shipping-kpi-card">
+          <span className="shipping-kpi-icon violet"><AdminIcon name="fa-route" /></span>
+          <div><span>Đang trên hành trình</span><strong>{delivering}</strong><p>Chờ lấy đến đang giao</p></div>
+        </article>
+        <article className="shipping-kpi-card">
+          <span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span>
+          <div><span>Đã giao thành công</span><strong>{delivered}</strong><p>{percent(delivered, summaryOverview?.totalShipped || 0)}% vận đơn</p></div>
+        </article>
+        <article className="shipping-kpi-card">
+          <span className="shipping-kpi-icon amber"><AdminIcon name="fa-store" /></span>
+          <div><span>Mạng lưới giao hàng</span><strong>{activeProviders} NVC</strong><p>{activeBranches}/{totalBranches} cơ sở nội bộ đang bật</p></div>
+        </article>
+      </section>
+
+      <nav className="shipping-tabs" aria-label="Khu vực quản lý vận chuyển">
+        {tabs.map((item) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '10px 18px',
-              border: 'none',
-              borderBottom: tab === t.key ? '2px solid #ec4899' : '2px solid transparent',
-              background: 'transparent',
-              color: tab === t.key ? '#be185d' : '#64748b',
-              fontWeight: tab === t.key ? 600 : 500,
-              cursor: 'pointer',
-              fontSize: 14,
-            }}
+            key={item.key}
+            type="button"
+            className={`shipping-tab ${tab === item.key ? 'is-active' : ''}`}
+            aria-current={tab === item.key ? 'page' : undefined}
+            onClick={() => setTab(item.key)}
           >
-            <i className={`fa ${t.icon}`} style={{ marginRight: 6 }}></i>
-            {t.label}
+            <AdminIcon name={item.icon} />
+            <span>{item.label}</span>
+            <strong>{item.count}</strong>
           </button>
         ))}
-      </div>
+      </nav>
 
-      {tab === 'config' && <ConfigTab />}
+      {tab === 'overview' && <OverviewTab onRefresh={() => void loadSummary(true)} />}
       {tab === 'history' && <HistoryTab />}
-      {tab === 'overview' && <OverviewTab />}
+      {tab === 'config' && <ConfigTab onChanged={() => void loadSummary(true)} />}
     </div>
   );
 }
 
-// ----------------------------------------------------------
-// TAB 1: CẤU HÌNH
-// ----------------------------------------------------------
-function ConfigTab() {
+function ConfigTab({ onChanged }: { onChanged: () => void }) {
   const [config, setConfig] = useState<AdminShippingConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<Record<string, ShippingTestResult | null>>({});
+  const [testing, setTesting] = useState<ProviderKey | null>(null);
+  const [testResult, setTestResult] = useState<Partial<Record<ProviderKey, ShippingTestResult>>>({});
   const [provinces, setProvinces] = useState<GhnProvinceItem[]>([]);
   const [districts, setDistricts] = useState<GhnDistrictItem[]>([]);
-  const [selectedProv, setSelectedProv] = useState<number | null>(null);
+  const [districtLoading, setDistrictLoading] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
 
-  useEffect(() => { void load(); }, []);
-
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const r = await adminShippingApi.getConfig();
-    if (r.success && r.data) {
-      setConfig(r.data);
+    const result = await adminShippingApi.getConfig();
+    if (result.success && result.data) {
+      setConfig(result.data);
     } else {
-      toast.error(r.error || 'Không tải được cấu hình');
+      toast.error(result.error || 'Không tải được cấu hình vận chuyển');
     }
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const update = (patch: Partial<AdminShippingConfig>) => {
+    setConfig((current) => current ? { ...current, ...patch } : current);
   };
 
-  const update = (patch: Partial<AdminShippingConfig>) =>
-    setConfig((prev) => prev ? { ...prev, ...patch } : prev);
-
-  const updateBranch = (idx: number, patch: Partial<KaitoKidBranch>) => {
-    setConfig((prev) => {
-      if (!prev) return prev;
-      const list = [...(prev.kaitoKidBranches || [])];
-      list[idx] = { ...list[idx], ...patch };
-      return { ...prev, kaitoKidBranches: list };
+  const updateBranch = (index: number, patch: Partial<KaitoKidBranch>) => {
+    setConfig((current) => {
+      if (!current) return current;
+      const branches = [...(current.kaitoKidBranches || [])];
+      branches[index] = { ...branches[index], ...patch };
+      return { ...current, kaitoKidBranches: branches };
     });
   };
 
   const addBranch = () => {
-    setConfig((prev) => {
-      if (!prev) return prev;
-      const list = [...(prev.kaitoKidBranches || [])];
-      list.push({ code: '', name: '', province: '', district: '', address: '', phone: '', active: true });
-      return { ...prev, kaitoKidBranches: list };
-    });
+    setConfig((current) => current ? {
+      ...current,
+      kaitoKidBranches: [
+        ...(current.kaitoKidBranches || []),
+        { code: '', name: '', province: '', district: '', address: '', phone: '', active: true },
+      ],
+    } : current);
   };
 
-  const removeBranch = (idx: number) => {
-    setConfig((prev) => {
-      if (!prev) return prev;
-      const list = [...(prev.kaitoKidBranches || [])];
-      list.splice(idx, 1);
-      return { ...prev, kaitoKidBranches: list };
-    });
+  const removeBranch = (index: number) => {
+    setConfig((current) => current ? {
+      ...current,
+      kaitoKidBranches: (current.kaitoKidBranches || []).filter((_, branchIndex) => branchIndex !== index),
+    } : current);
   };
 
   const save = async () => {
     if (!config) return;
     setSaving(true);
-    const r = await adminShippingApi.updateConfig(config);
+    const result = await adminShippingApi.updateConfig(config);
     setSaving(false);
-    if (r.success) {
-      toast.success('Đã lưu cấu hình vận chuyển');
-      await load();
-    } else {
-      toast.error(r.error || 'Lưu thất bại');
+    if (!result.success) {
+      toast.error(result.error || 'Lưu cấu hình thất bại');
+      return;
     }
+    toast.success('Đã lưu cấu hình vận chuyển');
+    await load();
+    onChanged();
   };
 
-  const test = async (provider: 'mock' | 'ghn' | 'ghtk') => {
+  const test = async (provider: ProviderKey) => {
     setTesting(provider);
-    const r = await adminShippingApi.test(provider);
+    const result = await adminShippingApi.test(provider);
     setTesting(null);
-    if (r.success && r.data) {
-      setTestResult((prev) => ({ ...prev, [provider]: r.data! }));
-      if (r.data.ok) toast.success(r.data.message || 'OK');
-      else toast.error(r.data.message || 'Test thất bại');
-    } else {
-      toast.error(r.error || 'Test thất bại');
+    if (result.success && result.data) {
+      setTestResult((current) => ({ ...current, [provider]: result.data }));
+      if (result.data.ok) toast.success(result.data.message || 'Kết nối hoạt động tốt');
+      else toast.error(result.data.message || 'Kiểm tra kết nối thất bại');
+      return;
     }
+    toast.error(result.error || 'Kiểm tra kết nối thất bại');
   };
 
-  const loadProvinces = async () => {
-    const r = await adminShippingApi.ghnProvinces();
-    const arr = (r.data as { data?: GhnProvinceItem[] } | undefined)?.data;
-    if (Array.isArray(arr)) setProvinces(arr);
-    else toast.error('Không tải được danh sách tỉnh GHN');
+  const toggleLookup = async () => {
+    if (lookupOpen) {
+      setLookupOpen(false);
+      return;
+    }
+    setLookupOpen(true);
+    if (provinces.length > 0) return;
+    const result = await adminShippingApi.ghnProvinces();
+    const items = result.data?.data;
+    if (result.success && Array.isArray(items)) setProvinces(items);
+    else toast.error(result.error || 'Không tải được danh sách tỉnh GHN');
   };
 
   const loadDistricts = async (provinceId: number) => {
-    setSelectedProv(provinceId);
-    const r = await adminShippingApi.ghnDistricts(provinceId);
-    const arr = (r.data as { data?: GhnDistrictItem[] } | undefined)?.data;
-    if (Array.isArray(arr)) setDistricts(arr);
-    else toast.error('Không tải được danh sách quận GHN');
+    if (!provinceId) {
+      setDistricts([]);
+      return;
+    }
+    setDistrictLoading(true);
+    const result = await adminShippingApi.ghnDistricts(provinceId);
+    setDistrictLoading(false);
+    const items = result.data?.data;
+    if (result.success && Array.isArray(items)) setDistricts(items);
+    else toast.error(result.error || 'Không tải được danh sách quận GHN');
+  };
+
+  const chooseDistrict = async (districtId: number) => {
+    const district = districts.find((item) => item.DistrictID === districtId);
+    if (!district) return;
+    try {
+      await navigator.clipboard.writeText(String(district.DistrictID));
+      toast.success(`Đã copy District ID ${district.DistrictID} — ${district.DistrictName}`);
+    } catch {
+      toast.success(`District ID: ${district.DistrictID} — ${district.DistrictName}`);
+    }
   };
 
   if (loading || !config) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải...</div>;
+    return (
+      <div className="shipping-content-stack">
+        <div className="shipping-loading-grid">
+          {Array.from({ length: 3 }).map((_, index) => <div className="shipping-skeleton" key={index} />)}
+        </div>
+        <div className="shipping-skeleton" style={{ minHeight: 320 }} />
+      </div>
+    );
   }
 
+  const branches = config.kaitoKidBranches || [];
+
   return (
-    <div style={{ display: 'grid', gap: 20 }}>
-      {/* Provider toggles */}
-      <Card title="Đơn vị vận chuyển" icon="fa-toggle-on">
-        <ProviderRow
-          name="KaitoKid Mock"
-          desc="Phí ship mô phỏng — không gọi API ngoài, dùng cho dev và demo offline."
-          enabled={config.mockEnabled}
-          onChange={(v) => update({ mockEnabled: v })}
-          onTest={() => test('mock')}
-          testing={testing === 'mock'}
-          result={testResult.mock}
-        />
-        <ProviderRow
-          name="Giao Hàng Nhanh (GHN)"
-          desc="Tính phí thật từ GHN. Không tạo đơn thật — chỉ gọi calculate-fee."
-          enabled={config.ghnEnabled}
-          onChange={(v) => update({ ghnEnabled: v })}
-          onTest={() => test('ghn')}
-          testing={testing === 'ghn'}
-          result={testResult.ghn}
-        />
-        <ProviderRow
-          name="Giao Hàng Tiết Kiệm (GHTK)"
-          desc="Tính phí thật từ GHTK. Không tạo đơn thật."
-          enabled={config.ghtkEnabled}
-          onChange={(v) => update({ ghtkEnabled: v })}
-          onTest={() => test('ghtk')}
-          testing={testing === 'ghtk'}
-          result={testResult.ghtk}
-        />
-      </Card>
-
-      {/* GHN config */}
-      <Card title="Cấu hình GHN" icon="fa-shipping-fast">
-        <Row>
-          <Field label="Base URL" hint="dev-online-gateway.ghn.vn = sandbox; online-gateway.ghn.vn = production">
-            <input
-              value={config.ghnBaseUrl || ''}
-              onChange={(e) => update({ ghnBaseUrl: e.target.value })}
-              placeholder="https://dev-online-gateway.ghn.vn"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="Token (UUID)">
-            <input
-              value={config.ghnToken || ''}
-              onChange={(e) => update({ ghnToken: e.target.value })}
-              placeholder="********-****-****-************"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="Shop ID">
-            <input
-              value={config.ghnShopId || ''}
-              onChange={(e) => update({ ghnShopId: e.target.value })}
-              placeholder="vd 192xxx"
-              style={inputStyle}
-            />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="From District ID (kho lấy hàng)">
-            <input
-              value={config.ghnFromDistrictId || ''}
-              onChange={(e) => update({ ghnFromDistrictId: e.target.value })}
-              placeholder="vd 1442"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="To District ID (mặc định để test phí)">
-            <input
-              value={config.ghnToDistrictIdFallback || ''}
-              onChange={(e) => update({ ghnToDistrictIdFallback: e.target.value })}
-              placeholder="vd 1454"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="To Ward Code">
-            <input
-              value={config.ghnToWardCodeFallback || ''}
-              onChange={(e) => update({ ghnToWardCodeFallback: e.target.value })}
-              placeholder="vd 21211"
-              style={inputStyle}
-            />
-          </Field>
-        </Row>
-        <div style={{ marginTop: 12, padding: 12, background: '#f8fafc', borderRadius: 6, fontSize: 13 }}>
-          <button
-            type="button"
-            onClick={() => provinces.length === 0 ? loadProvinces() : setProvinces([])}
-            style={{ ...secondaryBtn, marginRight: 8 }}
-          >
-            <i className="fa fa-search-location" style={{ marginRight: 6 }}></i>
-            Tra cứu District ID GHN
-          </button>
-          {provinces.length > 0 && (
-            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <select onChange={(e) => loadDistricts(Number(e.target.value))} style={inputStyle} defaultValue="">
-                <option value="">-- Chọn tỉnh --</option>
-                {provinces.map((p) => (
-                  <option key={p.ProvinceID} value={p.ProvinceID}>{p.ProvinceName}</option>
-                ))}
-              </select>
-              {districts.length > 0 && (
-                <select style={inputStyle} defaultValue="" onChange={(e) => {
-                  const d = districts.find((x) => x.DistrictID === Number(e.target.value));
-                  if (d) toast.success(`Đã copy District ID ${d.DistrictID} (${d.DistrictName}) — paste vào ô tương ứng`);
-                }}>
-                  <option value="">-- Chọn quận để xem ID --</option>
-                  {districts.map((d) => (
-                    <option key={d.DistrictID} value={d.DistrictID}>
-                      {d.DistrictName} ({d.DistrictID})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-          {selectedProv && districts.length === 0 && <span>Đang tải quận...</span>}
+    <div className="shipping-content-stack">
+      <Panel
+        icon="fa-network-wired"
+        title="Kênh vận chuyển"
+        description="Bật/tắt từng nhà vận chuyển và kiểm tra sức khỏe kết nối trước khi đưa vào checkout."
+      >
+        <div className="shipping-provider-grid">
+          <ProviderCard
+            provider="mock"
+            name="KaitoKid nội bộ"
+            description="Tự giao tại các tỉnh có cơ sở. Phù hợp demo, nội thành và các khu vực do KaitoKid tự phục vụ."
+            enabled={config.mockEnabled}
+            onChange={(value) => update({ mockEnabled: value })}
+            onTest={() => void test('mock')}
+            testing={testing === 'mock'}
+            result={testResult.mock}
+          />
+          <ProviderCard
+            provider="ghn"
+            name="Giao Hàng Nhanh"
+            description="Tích hợp calculate-fee của GHN để lấy phí vận chuyển theo khu vực giao hàng."
+            enabled={config.ghnEnabled}
+            onChange={(value) => update({ ghnEnabled: value })}
+            onTest={() => void test('ghn')}
+            testing={testing === 'ghn'}
+            result={testResult.ghn}
+          />
+          <ProviderCard
+            provider="ghtk"
+            name="Giao Hàng Tiết Kiệm"
+            description="Tính phí giao hàng bằng API GHTK, dùng cho khu vực ngoài mạng lưới nội bộ."
+            enabled={config.ghtkEnabled}
+            onChange={(value) => update({ ghtkEnabled: value })}
+            onTest={() => void test('ghtk')}
+            testing={testing === 'ghtk'}
+            result={testResult.ghtk}
+          />
         </div>
-      </Card>
+      </Panel>
 
-      {/* GHTK config */}
-      <Card title="Cấu hình GHTK" icon="fa-truck-loading">
-        <Row>
-          <Field label="Base URL">
-            <input
-              value={config.ghtkBaseUrl || ''}
-              onChange={(e) => update({ ghtkBaseUrl: e.target.value })}
-              placeholder="https://services.giaohangtietkiem.vn"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="Token">
-            <input
-              value={config.ghtkToken || ''}
-              onChange={(e) => update({ ghtkToken: e.target.value })}
-              placeholder="********"
-              style={inputStyle}
-            />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Pick Province (tỉnh kho)">
-            <input
-              value={config.ghtkPickProvince || ''}
-              onChange={(e) => update({ ghtkPickProvince: e.target.value })}
-              placeholder="Hà Nội"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="Pick District (quận kho)">
-            <input
-              value={config.ghtkPickDistrict || ''}
-              onChange={(e) => update({ ghtkPickDistrict: e.target.value })}
-              placeholder="Cầu Giấy"
-              style={inputStyle}
-            />
-          </Field>
-        </Row>
-      </Card>
+      <div className="shipping-config-grid">
+        <Panel icon="fa-truck-fast" title="Giao Hàng Nhanh" description="Thông tin API, shop và điểm lấy/giao mặc định dùng khi test phí.">
+          <div className="shipping-field-grid">
+            <Field label="Base URL" hint="Sandbox: dev-online-gateway.ghn.vn">
+              <input className="shipping-input" value={config.ghnBaseUrl || ''} onChange={(event) => update({ ghnBaseUrl: event.target.value })} placeholder="https://dev-online-gateway.ghn.vn" />
+            </Field>
+            <Field label="Token (UUID)">
+              <input className="shipping-input" value={config.ghnToken || ''} onChange={(event) => update({ ghnToken: event.target.value })} placeholder="********-****-****-************" />
+            </Field>
+            <Field label="Shop ID">
+              <input className="shipping-input" value={config.ghnShopId || ''} onChange={(event) => update({ ghnShopId: event.target.value })} placeholder="VD: 192xxx" />
+            </Field>
+            <Field label="From District ID">
+              <input className="shipping-input" value={config.ghnFromDistrictId || ''} onChange={(event) => update({ ghnFromDistrictId: event.target.value })} placeholder="VD: 1442" />
+            </Field>
+            <Field label="To District ID test">
+              <input className="shipping-input" value={config.ghnToDistrictIdFallback || ''} onChange={(event) => update({ ghnToDistrictIdFallback: event.target.value })} placeholder="VD: 1454" />
+            </Field>
+            <Field label="To Ward Code">
+              <input className="shipping-input" value={config.ghnToWardCodeFallback || ''} onChange={(event) => update({ ghnToWardCodeFallback: event.target.value })} placeholder="VD: 21211" />
+            </Field>
+          </div>
 
-      {/* Cơ sở KaitoKid (tự giao) */}
-      <Card title="Cơ sở KaitoKid (tự giao nội bộ)" icon="fa-store">
-        <p style={{ fontSize: 13, color: '#64748b', marginTop: 0, marginBottom: 12 }}>
-          Khi khách đặt hàng ở tỉnh nào nằm trong danh sách dưới, KaitoKid sẽ tự giao.
-          Khách ở tỉnh ngoài chỉ thấy tùy chọn GHN/GHTK.
-        </p>
+          <div className="shipping-lookup-box">
+            <button type="button" className="shipping-button small" onClick={() => void toggleLookup()}>
+              <AdminIcon name="fa-location-dot" /> {lookupOpen ? 'Đóng tra cứu District ID' : 'Tra cứu District ID GHN'}
+            </button>
+            {lookupOpen && (
+              <div className="shipping-lookup-grid">
+                <select className="shipping-select" defaultValue="" onChange={(event) => void loadDistricts(Number(event.target.value))}>
+                  <option value="">Chọn tỉnh / thành</option>
+                  {provinces.map((province) => <option key={province.ProvinceID} value={province.ProvinceID}>{province.ProvinceName}</option>)}
+                </select>
+                <select className="shipping-select" defaultValue="" disabled={districtLoading || districts.length === 0} onChange={(event) => void chooseDistrict(Number(event.target.value))}>
+                  <option value="">{districtLoading ? 'Đang tải quận / huyện...' : 'Chọn quận / huyện để copy ID'}</option>
+                  {districts.map((district) => <option key={district.DistrictID} value={district.DistrictID}>{district.DistrictName} · ID {district.DistrictID}</option>)}
+                </select>
+              </div>
+            )}
+            {lookupOpen && <div className="shipping-lookup-note">Chọn quận/huyện sẽ tự copy District ID vào clipboard để bạn dán vào trường tương ứng.</div>}
+          </div>
+        </Panel>
 
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-            <input
-              type="checkbox"
-              checked={config.mockOnlyServeBranches !== false}
-              onChange={(e) => update({ mockOnlyServeBranches: e.target.checked })}
-            />
-            <span>Chỉ giao ở các tỉnh có cơ sở</span>
+        <Panel icon="fa-boxes-packing" title="Giao Hàng Tiết Kiệm" description="Token API và khu vực lấy hàng mặc định của GHTK.">
+          <div className="shipping-field-grid">
+            <Field label="Base URL">
+              <input className="shipping-input" value={config.ghtkBaseUrl || ''} onChange={(event) => update({ ghtkBaseUrl: event.target.value })} placeholder="https://services.giaohangtietkiem.vn" />
+            </Field>
+            <Field label="Token">
+              <input className="shipping-input" value={config.ghtkToken || ''} onChange={(event) => update({ ghtkToken: event.target.value })} placeholder="********" />
+            </Field>
+            <Field label="Tỉnh lấy hàng">
+              <input className="shipping-input" value={config.ghtkPickProvince || ''} onChange={(event) => update({ ghtkPickProvince: event.target.value })} placeholder="Hà Nội" />
+            </Field>
+            <Field label="Quận / huyện lấy hàng">
+              <input className="shipping-input" value={config.ghtkPickDistrict || ''} onChange={(event) => update({ ghtkPickDistrict: event.target.value })} placeholder="Cầu Giấy" />
+            </Field>
+          </div>
+          <div className="shipping-lookup-box">
+            <span className="shipping-overline"><AdminIcon name="fa-circle-info" /> Lưu ý cấu hình</span>
+            <div className="shipping-lookup-note">Dùng token sandbox/production đúng với Base URL. Có thể kiểm tra ngay bằng nút Test trên thẻ nhà vận chuyển phía trên.</div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        icon="fa-store"
+        title="Mạng lưới KaitoKid tự giao"
+        description="Quản lý vùng phủ nội bộ, phí giao cùng tỉnh và SLA tiêu chuẩn / hỏa tốc."
+        actions={<button type="button" className="shipping-button small" onClick={addBranch}><AdminIcon name="fa-plus" /> Thêm cơ sở</button>}
+      >
+        <div className="shipping-internal-summary">
+          <p>Khi khách ở tỉnh có cơ sở đang hoạt động, checkout có thể hiển thị lựa chọn giao nội bộ KaitoKid.</p>
+          <label className="shipping-inline-toggle">
+            <span>Chỉ phục vụ tỉnh có cơ sở</span>
+            <span className="shipping-switch">
+              <input type="checkbox" checked={config.mockOnlyServeBranches !== false} onChange={(event) => update({ mockOnlyServeBranches: event.target.checked })} />
+              <span />
+            </span>
           </label>
         </div>
 
-        <Row>
-          <Field label="Phí giao cùng tỉnh (VND)">
-            <input type="number"
-              value={config.mockFeeSameProvince ?? 22000}
-              onChange={(e) => update({ mockFeeSameProvince: Number(e.target.value) })}
-              style={inputStyle} />
-          </Field>
-          <Field label="Phụ thu hỏa tốc (VND)">
-            <input type="number"
-              value={config.mockFeeExpress ?? 15000}
-              onChange={(e) => update({ mockFeeExpress: Number(e.target.value) })}
-              style={inputStyle} />
-          </Field>
-          <Field label="Thời gian giao tiêu chuẩn (giờ)">
-            <input type="number"
-              value={config.mockLeadTimeStandardHours ?? 6}
-              onChange={(e) => update({ mockLeadTimeStandardHours: Number(e.target.value) })}
-              style={inputStyle} />
-          </Field>
-          <Field label="Thời gian hỏa tốc (giờ)">
-            <input type="number"
-              value={config.mockLeadTimeExpressHours ?? 2}
-              onChange={(e) => update({ mockLeadTimeExpressHours: Number(e.target.value) })}
-              style={inputStyle} />
-          </Field>
-        </Row>
-
-        <h4 style={{ fontSize: 14, color: '#0f172a', margin: '20px 0 8px' }}>
-          Danh sách cơ sở
-        </h4>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {(config.kaitoKidBranches || []).map((b, idx) => (
-            <div key={idx} style={{
-              display: 'grid',
-              gridTemplateColumns: '90px 1fr 1.4fr 1.6fr 130px 70px',
-              gap: 8,
-              alignItems: 'center',
-              padding: 8,
-              background: b.active ? '#fff' : '#f8fafc',
-              border: '1px solid #e5e7eb',
-              borderRadius: 6,
-            }}>
-              <input value={b.code} placeholder="Mã (HN)" style={inputStyle}
-                onChange={(e) => updateBranch(idx, { code: e.target.value })} />
-              <input value={b.name} placeholder="Tên cơ sở" style={inputStyle}
-                onChange={(e) => updateBranch(idx, { name: e.target.value })} />
-              <input value={b.province} placeholder="Tỉnh/Thành" style={inputStyle}
-                onChange={(e) => updateBranch(idx, { province: e.target.value })} />
-              <input value={b.address || ''} placeholder="Địa chỉ chi tiết" style={inputStyle}
-                onChange={(e) => updateBranch(idx, { address: e.target.value })} />
-              <input value={b.phone || ''} placeholder="SĐT" style={inputStyle}
-                onChange={(e) => updateBranch(idx, { phone: e.target.value })} />
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <input type="checkbox" checked={b.active}
-                    onChange={(e) => updateBranch(idx, { active: e.target.checked })} />
-                  Bật
-                </label>
-                <button type="button" onClick={() => removeBranch(idx)}
-                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 16 }}>
-                  ×
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="shipping-field-grid four" style={{ marginBottom: 18 }}>
+          <Field label="Phí cùng tỉnh (VND)"><input className="shipping-input" type="number" value={config.mockFeeSameProvince ?? 22000} onChange={(event) => update({ mockFeeSameProvince: Number(event.target.value) })} /></Field>
+          <Field label="Phụ thu hỏa tốc (VND)"><input className="shipping-input" type="number" value={config.mockFeeExpress ?? 15000} onChange={(event) => update({ mockFeeExpress: Number(event.target.value) })} /></Field>
+          <Field label="SLA tiêu chuẩn (giờ)"><input className="shipping-input" type="number" value={config.mockLeadTimeStandardHours ?? 6} onChange={(event) => update({ mockLeadTimeStandardHours: Number(event.target.value) })} /></Field>
+          <Field label="SLA hỏa tốc (giờ)"><input className="shipping-input" type="number" value={config.mockLeadTimeExpressHours ?? 2} onChange={(event) => update({ mockLeadTimeExpressHours: Number(event.target.value) })} /></Field>
         </div>
 
-        <button type="button" onClick={addBranch} style={{ ...secondaryBtn, marginTop: 12 }}>
-          <i className="fa fa-plus" style={{ marginRight: 6 }}></i>
-          Thêm cơ sở
-        </button>
-      </Card>
+        <div className="shipping-table-wrap">
+          <table className="shipping-branch-table">
+            <thead><tr><th>Mã</th><th>Tên cơ sở</th><th>Tỉnh / thành</th><th>Địa chỉ</th><th>Số điện thoại</th><th>Trạng thái</th><th /></tr></thead>
+            <tbody>
+              {branches.map((branch, index) => (
+                <tr key={`${branch.code}-${index}`} className={branch.active ? '' : 'is-disabled'}>
+                  <td><input className="shipping-input" value={branch.code} onChange={(event) => updateBranch(index, { code: event.target.value })} placeholder="HN" /></td>
+                  <td><input className="shipping-input" value={branch.name} onChange={(event) => updateBranch(index, { name: event.target.value })} placeholder="KaitoKid Hà Nội" /></td>
+                  <td><input className="shipping-input" value={branch.province} onChange={(event) => updateBranch(index, { province: event.target.value })} placeholder="Hà Nội" /></td>
+                  <td><input className="shipping-input" value={branch.address || ''} onChange={(event) => updateBranch(index, { address: event.target.value })} placeholder="Địa chỉ chi tiết" /></td>
+                  <td><input className="shipping-input" value={branch.phone || ''} onChange={(event) => updateBranch(index, { phone: event.target.value })} placeholder="09xxxxxxxx" /></td>
+                  <td>
+                    <label className="shipping-switch" title={branch.active ? 'Đang hoạt động' : 'Đang tắt'}>
+                      <input type="checkbox" checked={branch.active} onChange={(event) => updateBranch(index, { active: event.target.checked })} />
+                      <span />
+                    </label>
+                  </td>
+                  <td><div className="shipping-branch-actions"><button type="button" className="shipping-icon-button danger" onClick={() => removeBranch(index)} aria-label={`Xóa cơ sở ${branch.name || index + 1}`}><AdminIcon name="fa-trash" /></button></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {branches.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-store" /></span><strong>Chưa có cơ sở nội bộ</strong><p>Thêm cơ sở để mở vùng giao KaitoKid tại tỉnh/thành tương ứng.</p></div>}
+        </div>
+      </Panel>
 
-      {/* Pickup chung */}
-      <Card title="Địa chỉ kho lấy hàng & Mặc định" icon="fa-map-marker-alt">
-        <Row>
-          <Field label="Tên kho">
-            <input value={config.pickupName || ''} onChange={(e) => update({ pickupName: e.target.value })} style={inputStyle} placeholder="Kho KaitoKid HN" />
-          </Field>
-          <Field label="Số điện thoại kho">
-            <input value={config.pickupPhone || ''} onChange={(e) => update({ pickupPhone: e.target.value })} style={inputStyle} placeholder="0987 654 321" />
-          </Field>
-          <Field label="Trọng lượng mặc định / sản phẩm (gram)">
-            <input
-              type="number"
-              value={config.defaultWeightGram ?? 300}
-              onChange={(e) => update({ defaultWeightGram: Number(e.target.value) })}
-              style={inputStyle}
-            />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Địa chỉ chi tiết kho">
-            <input value={config.pickupAddress || ''} onChange={(e) => update({ pickupAddress: e.target.value })} style={inputStyle} placeholder="Số 1, đường ABC, phường XYZ..." />
-          </Field>
-        </Row>
-      </Card>
+      <Panel icon="fa-warehouse" title="Kho lấy hàng mặc định" description="Thông tin dùng chung để báo phí và làm điểm xuất phát cho nhà vận chuyển.">
+        <div className="shipping-field-grid three">
+          <Field label="Tên kho"><input className="shipping-input" value={config.pickupName || ''} onChange={(event) => update({ pickupName: event.target.value })} placeholder="Kho KaitoKid HN" /></Field>
+          <Field label="Số điện thoại kho"><input className="shipping-input" value={config.pickupPhone || ''} onChange={(event) => update({ pickupPhone: event.target.value })} placeholder="0987 654 321" /></Field>
+          <Field label="Trọng lượng mặc định / SP (gram)"><input className="shipping-input" type="number" value={config.defaultWeightGram ?? 300} onChange={(event) => update({ defaultWeightGram: Number(event.target.value) })} /></Field>
+          <Field label="Địa chỉ chi tiết" full><input className="shipping-input" value={config.pickupAddress || ''} onChange={(event) => update({ pickupAddress: event.target.value })} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành..." /></Field>
+        </div>
+      </Panel>
 
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-        <button onClick={load} style={secondaryBtn} disabled={saving}>
-          <i className="fa fa-undo" style={{ marginRight: 6 }}></i> Reset
-        </button>
-        <button onClick={save} style={primaryBtn} disabled={saving}>
-          <i className="fa fa-save" style={{ marginRight: 6 }}></i>
-          {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
-        </button>
+      <div className="shipping-save-bar">
+        <p><AdminIcon name="fa-circle-info" /> Thay đổi chỉ có hiệu lực sau khi bấm <strong>Lưu cấu hình</strong>.</p>
+        <div className="shipping-save-actions">
+          <button type="button" className="shipping-button" onClick={() => void load()} disabled={saving}><AdminIcon name="fa-rotate-left" /> Khôi phục</button>
+          <button type="button" className="shipping-button primary" onClick={() => void save()} disabled={saving}><AdminIcon name={`fa-floppy-disk${saving ? ' fa-spin' : ''}`} /> {saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
+        </div>
       </div>
     </div>
   );
 }
 
-function ProviderRow({
-  name, desc, enabled, onChange, onTest, testing, result,
-}: {
+function ProviderCard({ provider, name, description, enabled, onChange, onTest, testing, result }: {
+  provider: ProviderKey;
   name: string;
-  desc: string;
+  description: string;
   enabled: boolean;
-  onChange: (v: boolean) => void;
+  onChange: (value: boolean) => void;
   onTest: () => void;
   testing: boolean;
-  result?: ShippingTestResult | null;
+  result?: ShippingTestResult;
 }) {
+  const shortName = provider === 'mock' ? 'KK' : provider.toUpperCase();
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      padding: '14px 0',
-      borderBottom: '1px solid #f1f5f9',
-    }}>
-      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) => onChange(e.target.checked)}
-          style={{ width: 18, height: 18, marginRight: 10 }}
-        />
-        <div>
-          <div style={{ fontWeight: 600, color: '#0f172a' }}>{name}</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{desc}</div>
-        </div>
-      </label>
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-        {result && (
-          <span style={{
-            padding: '4px 10px',
-            borderRadius: 12,
-            fontSize: 12,
-            fontWeight: 600,
-            background: result.ok ? '#dcfce7' : '#fee2e2',
-            color: result.ok ? '#166534' : '#991b1b',
-          }}>
-            {result.ok ? '✓ OK' : '✗ FAIL'}
-          </span>
-        )}
-        <button onClick={onTest} disabled={testing} style={secondaryBtn}>
-          <i className="fa fa-plug" style={{ marginRight: 6 }}></i>
-          {testing ? 'Đang test...' : 'Test'}
+    <article className={`shipping-provider-card ${enabled ? 'is-enabled' : ''}`}>
+      <div className="shipping-provider-head">
+        <span className={`shipping-provider-logo ${provider}`}>{shortName}</span>
+        <div className="shipping-provider-copy"><h3>{name}</h3><p>{description}</p></div>
+        <label className="shipping-switch" aria-label={`${enabled ? 'Tắt' : 'Bật'} ${name}`}>
+          <input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} />
+          <span />
+        </label>
+      </div>
+      <div className="shipping-provider-status"><i /><span>{enabled ? 'Đang được phép hiển thị ở checkout' : 'Đang tạm tắt'}</span></div>
+      <div className="shipping-provider-footer">
+        <span className={`shipping-test-result ${result?.ok ? 'ok' : result ? 'fail' : ''}`}>
+          {result ? <><AdminIcon name={result.ok ? 'fa-circle-check' : 'fa-circle-xmark'} /> {result.ok ? 'Kết nối tốt' : 'Kết nối lỗi'}</> : 'Chưa kiểm tra phiên này'}
+        </span>
+        <button type="button" className="shipping-button small" onClick={onTest} disabled={testing}>
+          <AdminIcon name={testing ? 'fa-spinner fa-spin' : 'fa-plug'} /> {testing ? 'Đang test' : 'Test API'}
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
-// ----------------------------------------------------------
-// TAB 2: LỊCH SỬ
-// ----------------------------------------------------------
 function HistoryTab() {
   const [items, setItems] = useState<AdminShippingHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<{ search: string; provider: string; status: string; page: number; pageSize: number; }>({
-    search: '', provider: '', status: '', page: 1, pageSize: 20,
-  });
+  const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
+  const [filter, setFilter] = useState({ search: '', provider: '', status: '', page: 1, pageSize: 20 });
 
-  useEffect(() => { void load(); }, [filter.page, filter.provider, filter.status]);
-
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const r = await adminShippingApi.getHistory(filter);
-    if (r.success && r.data) {
-      setItems(r.data.items);
-      setTotal(r.data.total);
+    const result = await adminShippingApi.getHistory(filter);
+    if (result.success && result.data) {
+      setItems(result.data.items);
+      setTotal(result.data.total);
+    } else {
+      toast.error(result.error || 'Không tải được lịch sử vận đơn');
     }
     setLoading(false);
+  }, [filter]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const pageSummary = useMemo(() => ({
+    delivering: items.filter((item) => ['picking', 'picked', 'delivering'].includes(item.status)).length,
+    delivered: items.filter((item) => item.status === 'delivered').length,
+    cancelled: items.filter((item) => item.status === 'cancelled').length,
+    providers: new Set(items.map((item) => item.provider).filter(Boolean)).size,
+  }), [items]);
+
+  const applySearch = () => {
+    setFilter((current) => ({ ...current, search: searchInput.trim(), page: 1 }));
   };
 
+  const reset = () => {
+    setSearchInput('');
+    setFilter({ search: '', provider: '', status: '', page: 1, pageSize: 20 });
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / filter.pageSize));
+
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          placeholder="Tìm theo mã đơn, mã vận đơn, SĐT..."
-          value={filter.search}
-          onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value }))}
-          onKeyDown={(e) => { if (e.key === 'Enter') { setFilter((f) => ({ ...f, page: 1 })); load(); } }}
-          style={{ ...inputStyle, flex: 1, minWidth: 240 }}
-        />
-        <select value={filter.provider} onChange={(e) => setFilter((f) => ({ ...f, provider: e.target.value, page: 1 }))} style={inputStyle}>
-          <option value="">Tất cả nhà vận chuyển</option>
-          <option value="mock">KaitoKid Mock</option>
-          <option value="ghn">GHN</option>
-          <option value="ghtk">GHTK</option>
-        </select>
-        <select value={filter.status} onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value, page: 1 }))} style={inputStyle}>
-          <option value="">Tất cả trạng thái</option>
-          <option value="ready_to_pick">Chờ lấy</option>
-          <option value="picking">Đang lấy</option>
-          <option value="picked">Đã lấy</option>
-          <option value="delivering">Đang giao</option>
-          <option value="delivered">Đã giao</option>
-          <option value="cancelled">Đã hủy</option>
-        </select>
-        <button onClick={load} style={primaryBtn}>
-          <i className="fa fa-search" style={{ marginRight: 6 }}></i> Tìm
-        </button>
-      </div>
+    <div className="shipping-content-stack">
+      <section className="shipping-history-summary" aria-label="Tóm tắt trang vận đơn hiện tại">
+        <article className="shipping-history-mini"><span>Tổng kết quả</span><strong>{total}</strong></article>
+        <article className="shipping-history-mini"><span>Đang vận chuyển / trang</span><strong>{pageSummary.delivering}</strong></article>
+        <article className="shipping-history-mini"><span>Đã giao / trang</span><strong>{pageSummary.delivered}</strong></article>
+        <article className="shipping-history-mini"><span>Đơn vị vận chuyển / trang</span><strong>{pageSummary.providers}</strong></article>
+      </section>
 
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f8fafc' }}>
-              <th style={th}>Mã đơn</th>
-              <th style={th}>Mã vận đơn</th>
-              <th style={th}>NVC</th>
-              <th style={th}>Khách</th>
-              <th style={th}>Trạng thái</th>
-              <th style={th}>Mô tả</th>
-              <th style={th}>Vị trí</th>
-              <th style={th}>Thời gian</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải...</td></tr>
-            )}
-            {!loading && items.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Chưa có lịch sử vận đơn.</td></tr>
-            )}
-            {items.map((h) => (
-              <tr key={h.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                <td style={td}><strong>{h.orderCode}</strong></td>
-                <td style={td}>{h.trackingCode || '—'}</td>
-                <td style={td}>{PROVIDER_LABEL[h.provider || ''] || h.provider || '—'}</td>
-                <td style={td}>
-                  <div>{h.customerName}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{h.customerPhone}</div>
-                </td>
-                <td style={td}>
-                  <span style={statusBadge(h.status)}>{STATUS_LABEL[h.status] || h.status}</span>
-                </td>
-                <td style={td}>{h.description || '—'}</td>
-                <td style={td}>{h.location || '—'}</td>
-                <td style={td}>{formatDate(h.time)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#64748b', fontSize: 13 }}>Tổng {total} bản ghi</span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setFilter((f) => ({ ...f, page: Math.max(1, f.page - 1) }))}
-            disabled={filter.page <= 1}
-            style={secondaryBtn}
-          >‹ Trước</button>
-          <span style={{ alignSelf: 'center', padding: '0 12px' }}>Trang {filter.page} / {Math.max(1, Math.ceil(total / filter.pageSize))}</span>
-          <button
-            onClick={() => setFilter((f) => ({ ...f, page: f.page + 1 }))}
-            disabled={filter.page * filter.pageSize >= total}
-            style={secondaryBtn}
-          >Sau ›</button>
+      <Panel icon="fa-clock-rotate-left" title="Nhật ký vận đơn" description="Tra cứu hành trình theo mã đơn, mã vận đơn, khách hàng, nhà vận chuyển hoặc trạng thái." flush>
+        <div className="shipping-history-toolbar">
+          <div className="shipping-search-box">
+            <i className="fa fa-search" />
+            <input
+              className="shipping-input"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }}
+              placeholder="Mã đơn, mã vận đơn, SĐT..."
+            />
+          </div>
+          <select className="shipping-select" value={filter.provider} onChange={(event) => setFilter((current) => ({ ...current, provider: event.target.value, page: 1 }))}>
+            <option value="">Tất cả nhà vận chuyển</option><option value="mock">KaitoKid nội bộ</option><option value="ghn">GHN</option><option value="ghtk">GHTK</option>
+          </select>
+          <select className="shipping-select" value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value, page: 1 }))}>
+            <option value="">Tất cả trạng thái</option><option value="ready_to_pick">Chờ lấy hàng</option><option value="picking">Đang lấy hàng</option><option value="picked">Đã lấy hàng</option><option value="delivering">Đang giao</option><option value="delivered">Đã giao</option><option value="cancelled">Đã hủy</option>
+          </select>
+          <div className="shipping-panel-actions">
+            <button type="button" className="shipping-button small" onClick={reset} title="Xóa bộ lọc"><AdminIcon name="fa-rotate-left" /></button>
+            <button type="button" className="shipping-button primary small" onClick={applySearch}><AdminIcon name="fa-search" /> Tìm</button>
+          </div>
         </div>
-      </div>
+
+        <div className="shipping-table-wrap">
+          <table className="shipping-history-table">
+            <thead><tr><th>Mã đơn</th><th>Mã vận đơn</th><th>Đơn vị</th><th>Khách hàng</th><th>Trạng thái</th><th>Diễn biến</th><th>Vị trí</th><th>Thời gian</th></tr></thead>
+            <tbody>
+              {!loading && items.map((item) => (
+                <tr key={item.id}>
+                  <td><span className="shipping-order-code">{item.orderCode}</span></td>
+                  <td>{item.trackingCode || '—'}</td>
+                  <td><span className="shipping-provider-chip"><i className="fa fa-truck" /> {PROVIDER_LABEL[item.provider || ''] || item.provider || '—'}</span></td>
+                  <td><div className="shipping-customer-cell"><strong>{item.customerName || 'Khách hàng'}</strong><span>{item.customerPhone || 'Chưa có SĐT'}</span></div></td>
+                  <td><span className={`shipping-status-badge ${item.status}`}>{STATUS_LABEL[item.status] || item.status}</span></td>
+                  <td>{item.description || '—'}</td>
+                  <td>{item.location || '—'}</td>
+                  <td>{formatDate(item.time)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {loading && <div className="shipping-table-empty"><span><AdminIcon name="fa-spinner fa-spin" /></span><strong>Đang tải lịch sử vận đơn</strong><p>Dữ liệu sẽ xuất hiện trong giây lát.</p></div>}
+          {!loading && items.length === 0 && <div className="shipping-table-empty"><span><AdminIcon name="fa-route" /></span><strong>Chưa có vận đơn phù hợp</strong><p>Thử nới bộ lọc hoặc tìm bằng mã đơn khác.</p></div>}
+        </div>
+
+        <div className="shipping-pagination">
+          <span>Hiển thị {items.length} / {total} bản ghi · {pageSummary.cancelled} hủy trên trang này</span>
+          <div className="shipping-pagination-actions">
+            <button type="button" className="shipping-button small" disabled={filter.page <= 1} onClick={() => setFilter((current) => ({ ...current, page: Math.max(1, current.page - 1) }))}><AdminIcon name="fa-arrow-left" /> Trước</button>
+            <span>Trang {filter.page} / {totalPages}</span>
+            <button type="button" className="shipping-button small" disabled={filter.page >= totalPages} onClick={() => setFilter((current) => ({ ...current, page: Math.min(totalPages, current.page + 1) }))}>Sau <AdminIcon name="fa-arrow-right" /></button>
+          </div>
+        </div>
+      </Panel>
     </div>
   );
 }
 
-// ----------------------------------------------------------
-// TAB 3: TỔNG QUAN
-// ----------------------------------------------------------
-function OverviewTab() {
+function OverviewTab({ onRefresh }: { onRefresh: () => void }) {
   const [data, setData] = useState<AdminShippingOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { void load(); }, []);
-
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const r = await adminShippingApi.getOverview();
-    if (r.success && r.data) setData(r.data);
+    const result = await adminShippingApi.getOverview();
+    if (result.success && result.data) setData(result.data);
+    else toast.error(result.error || 'Không tải được tổng quan vận chuyển');
     setLoading(false);
-  };
+    onRefresh();
+  }, [onRefresh]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Không có dữ liệu.</div>;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading || !data) {
+    return <div className="shipping-loading-grid">{Array.from({ length: 3 }).map((_, index) => <div className="shipping-skeleton" key={index} />)}</div>;
+  }
+
+  const shippedRate = percent(data.totalShipped, data.totalOrders);
+  const delivered = data.byStatus.find((item) => item.status === 'delivered')?.count || 0;
+  const cancelled = data.byStatus.find((item) => item.status === 'cancelled')?.count || 0;
+  const inTransit = data.byStatus.filter((item) => ['ready_to_pick', 'picking', 'picked', 'delivering'].includes(item.status)).reduce((sum, item) => sum + item.count, 0);
+  const deliveredRate = percent(delivered, data.totalShipped);
+  const maxProvider = Math.max(1, ...data.byProvider.map((item) => item.count));
+  const maxStatus = Math.max(1, ...data.byStatus.map((item) => item.count));
 
   return (
-    <div style={{ display: 'grid', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <StatCard label="Tổng đơn hàng" value={data.totalOrders} icon="fa-shopping-cart" color="#6366f1" />
-        <StatCard label="Đơn đã có vận đơn" value={data.totalShipped} icon="fa-truck" color="#16a34a" />
-        <StatCard label="Tỉ lệ phát sinh vận đơn" value={`${data.totalOrders > 0 ? Math.round((data.totalShipped / data.totalOrders) * 100) : 0}%`} icon="fa-percentage" color="#ec4899" />
-      </div>
-
-      <Card title="Phân bổ theo nhà vận chuyển" icon="fa-shipping-fast">
-        {data.byProvider.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Chưa có dữ liệu.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {data.byProvider.map((p) => (
-              <ProgressBar
-                key={p.provider}
-                label={PROVIDER_LABEL[p.provider] || p.provider}
-                value={p.count}
-                total={data.totalShipped}
-                color="#ec4899"
-              />
-            ))}
+    <div className="shipping-content-stack">
+      <div className="shipping-overview-grid">
+        <article className="shipping-metric-banner">
+          <span className="shipping-overline"><AdminIcon name="fa-signal" /> Logistics health</span>
+          <h2>{shippedRate}% đơn đã có vận đơn</h2>
+          <p>Theo dõi độ phủ vận đơn và nhịp giao hàng để phát hiện sớm điểm nghẽn trong luồng xử lý đơn.</p>
+          <div className="shipping-banner-metrics">
+            <div><span>Tổng đơn</span><strong>{data.totalOrders}</strong></div>
+            <div><span>Đã có vận đơn</span><strong>{data.totalShipped}</strong></div>
+            <div><span>Đang vận chuyển</span><strong>{inTransit}</strong></div>
           </div>
-        )}
-      </Card>
+        </article>
 
-      <Card title="Phân bổ theo trạng thái vận chuyển" icon="fa-flag-checkered">
-        {data.byStatus.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Chưa có dữ liệu.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {data.byStatus.map((s) => (
-              <ProgressBar
-                key={s.status}
-                label={STATUS_LABEL[s.status] || s.status}
-                value={s.count}
-                total={data.totalShipped}
-                color="#6366f1"
-              />
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-// ----------------------------------------------------------
-// HELPERS
-// ----------------------------------------------------------
-function Card({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20 }}>
-      <h3 style={{ margin: 0, marginBottom: 16, fontSize: 16, color: '#0f172a' }}>
-        <i className={`fa ${icon}`} style={{ marginRight: 8, color: '#ec4899' }}></i>
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function Row({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>{children}</div>;
-}
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>{label}</label>
-      {children}
-      {hint && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{hint}</div>}
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) {
-  return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 48, height: 48, borderRadius: 10, background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <i className={`fa ${icon}`} style={{ color, fontSize: 22 }}></i>
-        </div>
-        <div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{label}</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a' }}>{value}</div>
+        <div className="shipping-health-stack">
+          <article className="shipping-health-card"><span className="shipping-kpi-icon emerald"><AdminIcon name="fa-circle-check" /></span><div><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></div></article>
+          <article className="shipping-health-card"><span className="shipping-kpi-icon violet"><AdminIcon name="fa-truck-fast" /></span><div><span>Đang trên hành trình</span><strong>{inTransit} vận đơn</strong></div></article>
+          <article className="shipping-health-card"><span className="shipping-kpi-icon amber"><AdminIcon name="fa-triangle-exclamation" /></span><div><span>Đã hủy</span><strong>{cancelled} vận đơn</strong></div></article>
         </div>
       </div>
+
+      <div className="shipping-config-grid">
+        <Panel icon="fa-truck" title="Phân bổ nhà vận chuyển" description="Tỷ trọng vận đơn đang được phục vụ bởi từng kênh giao hàng.">
+          {data.byProvider.length > 0 ? (
+            <div className="shipping-distribution-list">
+              {data.byProvider.sort((a, b) => b.count - a.count).map((item) => (
+                <DistributionRow key={item.provider} label={PROVIDER_LABEL[item.provider] || item.provider} value={item.count} total={data.totalShipped} max={maxProvider} color={PROVIDER_COLORS[item.provider] || '#5b5bd6'} />
+              ))}
+            </div>
+          ) : <EmptyState icon="fa-truck" text="Chưa có dữ liệu nhà vận chuyển." />}
+        </Panel>
+
+        <Panel icon="fa-flag-checkered" title="Pipeline vận chuyển" description="Phân bổ vận đơn theo từng bước của hành trình giao hàng.">
+          {data.byStatus.length > 0 ? (
+            <div className="shipping-distribution-list">
+              {data.byStatus.sort((a, b) => b.count - a.count).map((item) => (
+                <DistributionRow key={item.status} label={STATUS_LABEL[item.status] || item.status} value={item.count} total={data.totalShipped} max={maxStatus} color={STATUS_COLORS[item.status] || '#64748b'} />
+              ))}
+            </div>
+          ) : <EmptyState icon="fa-route" text="Chưa có dữ liệu trạng thái vận chuyển." />}
+        </Panel>
+      </div>
+
+      <Panel icon="fa-lightbulb" title="Tín hiệu vận hành" description="Các chỉ số nhanh giúp ưu tiên việc cần kiểm tra trong ngày.">
+        <div className="shipping-history-summary">
+          <article className="shipping-history-mini"><span>Độ phủ vận đơn</span><strong>{shippedRate}%</strong></article>
+          <article className="shipping-history-mini"><span>Tỷ lệ giao thành công</span><strong>{deliveredRate}%</strong></article>
+          <article className="shipping-history-mini"><span>Đang vận chuyển</span><strong>{inTransit}</strong></article>
+          <article className="shipping-history-mini"><span>Cần theo dõi do hủy</span><strong>{cancelled}</strong></article>
+        </div>
+      </Panel>
     </div>
   );
 }
 
-function ProgressBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+function Panel({ icon, title, description, actions, children, flush = false }: {
+  icon: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  flush?: boolean;
+}) {
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-        <span style={{ color: '#0f172a', fontWeight: 500 }}>{label}</span>
-        <span style={{ color: '#64748b' }}>{value} ({pct}%)</span>
-      </div>
-      <div style={{ background: '#f1f5f9', height: 8, borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ background: color, width: `${pct}%`, height: '100%' }}></div>
-      </div>
+    <section className="shipping-panel">
+      <header className="shipping-panel-header">
+        <div className="shipping-panel-title">
+          <span className="shipping-panel-icon"><AdminIcon name={icon} /></span>
+          <div><h2>{title}</h2>{description && <p>{description}</p>}</div>
+        </div>
+        {actions && <div className="shipping-panel-actions">{actions}</div>}
+      </header>
+      <div className={`shipping-panel-body ${flush ? 'flush' : ''}`}>{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, hint, children, full = false }: { label: string; hint?: string; children: ReactNode; full?: boolean }) {
+  return <label className={`shipping-field ${full ? 'full' : ''}`}><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
+}
+
+function DistributionRow({ label, value, total, max, color }: { label: string; value: number; total: number; max: number; color: string }) {
+  const share = percent(value, total);
+  const visualWidth = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0;
+  return (
+    <div className="shipping-distribution-row">
+      <div className="shipping-distribution-label"><i style={{ background: color }} /><span>{label}</span></div>
+      <div className="shipping-progress-track"><span style={{ width: `${visualWidth}%`, background: color }} /></div>
+      <div className="shipping-distribution-value"><strong>{value}</strong> · {share}%</div>
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14,
-};
-const primaryBtn: React.CSSProperties = {
-  padding: '8px 16px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13,
-};
-const secondaryBtn: React.CSSProperties = {
-  padding: '8px 14px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer', fontSize: 13,
-};
-const th: React.CSSProperties = { padding: '12px 14px', textAlign: 'left', fontWeight: 600, color: '#475569', fontSize: 12, textTransform: 'uppercase' };
-const td: React.CSSProperties = { padding: '10px 14px', color: '#0f172a', verticalAlign: 'top' };
-
-function statusBadge(status: string): React.CSSProperties {
-  const palette: Record<string, { bg: string; fg: string }> = {
-    ready_to_pick: { bg: '#fef3c7', fg: '#92400e' },
-    picking: { bg: '#fef3c7', fg: '#92400e' },
-    picked: { bg: '#dbeafe', fg: '#1e40af' },
-    delivering: { bg: '#e0e7ff', fg: '#4338ca' },
-    delivered: { bg: '#dcfce7', fg: '#166534' },
-    cancelled: { bg: '#fee2e2', fg: '#991b1b' },
-    order_placed: { bg: '#f1f5f9', fg: '#475569' },
-  };
-  const c = palette[status] || { bg: '#f1f5f9', fg: '#475569' };
-  return {
-    padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-    background: c.bg, color: c.fg, textTransform: 'uppercase', letterSpacing: '0.3px',
-    whiteSpace: 'nowrap',
-  };
+function EmptyState({ icon, text }: { icon: string; text: string }) {
+  return <div className="shipping-empty-state"><i className={`fa ${icon}`} /><p>{text}</p></div>;
 }
