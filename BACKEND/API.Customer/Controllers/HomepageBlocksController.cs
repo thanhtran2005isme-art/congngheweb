@@ -75,40 +75,50 @@ public class HomepageBlocksController(CustomerDbContext db) : ControllerBase
         var result = configs.Select(config =>
         {
             var ids = ParseProductIds(config.ProductIds);
-            var products = ids
-                .Where(productMap.ContainsKey)
-                .Select(id => productMap[id])
-                .Select(product => new
-                {
-                    id = product.Id,
-                    name = product.Name,
-                    category = product.Category,
-                    subcategory = product.Subcategory,
-                    gender = product.Gender,
-                    price = product.Price,
-                    oldPrice = product.OldPrice,
-                    stock = product.Stock,
-                    status = product.Status,
-                    image = product.Image,
-                    shortDescription = product.ShortDescription,
-                    sku = product.Sku,
-                    slug = product.Slug,
-                    isNew = product.IsNew,
-                    isSale = product.IsSale,
-                    isBestSeller = product.IsBestSeller,
-                    rating = product.Rating,
-                    soldCount = product.SoldCount,
-                    colors = DeserializeList(product.Colors),
-                    sizes = DeserializeList(product.Sizes),
-                })
-                .ToList();
+            var selectionMode = ids.Count > 0 ? "manual" : "automatic";
+
+            var selectedProducts = !config.IsActive
+                ? []
+                : selectionMode == "manual"
+                    ? ids.Where(productMap.ContainsKey).Select(id => productMap[id]).ToList()
+                    : config.Key switch
+                    {
+                        "newArrivals" => activeProducts.Where(p => p.IsNew).OrderByDescending(p => p.CreatedAt).Take(8).ToList(),
+                        "saleProducts" => activeProducts.Where(p => p.IsSale).OrderByDescending(p => (p.OldPrice ?? p.Price) - p.Price).Take(8).ToList(),
+                        "bestSellers" => activeProducts.Where(p => p.IsBestSeller).OrderByDescending(p => p.SoldCount).Take(8).ToList(),
+                        _ => []
+                    };
+
+            var products = selectedProducts.Select(product => new
+            {
+                id = product.Id,
+                name = product.Name,
+                category = product.Category,
+                subcategory = product.Subcategory,
+                gender = product.Gender,
+                price = product.Price,
+                oldPrice = product.OldPrice,
+                stock = product.Stock,
+                status = product.Status,
+                image = product.Image,
+                shortDescription = product.ShortDescription,
+                sku = product.Sku,
+                slug = product.Slug,
+                isNew = product.IsNew,
+                isSale = product.IsSale,
+                isBestSeller = product.IsBestSeller,
+                rating = product.Rating,
+                soldCount = product.SoldCount,
+                colors = DeserializeList(product.Colors),
+                sizes = DeserializeList(product.Sizes),
+            }).ToList();
 
             return new
             {
                 key = config.Key,
                 isActive = config.IsActive,
                 sortOrder = config.SortOrder,
-                selectionMode = ids.Count > 0 ? "manual" : "automatic",
+                selectionMode,
                 configuredProductIds = ids,
                 products,
             };
