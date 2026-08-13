@@ -148,10 +148,8 @@ public class AdminStockReceiptsController(AdminDbContext db) : ControllerBase
             TrangThai = "done"
         };
 
-        // Tạo phiếu trước để có Id
-        db.PhieuNhap.Add(phieu);
-        await db.SaveChangesAsync();
-
+        // Không SaveChanges header riêng. Gắn navigation để EF tạo PhieuNhap + chi tiết
+        // cùng toàn bộ thay đổi tồn kho trong MỘT SaveChanges/transaction.
         foreach (var item in dto.Items)
         {
             var sp = products[item.SanPhamId];
@@ -160,7 +158,7 @@ public class AdminStockReceiptsController(AdminDbContext db) : ControllerBase
 
             chiTietList.Add(new ChiTietPhieuNhap
             {
-                PhieuNhapId = phieu.Id,
+                PhieuNhap = phieu,
                 SanPhamId = sp.Id,
                 TenSanPham = sp.TenSanPham,
                 KichCo = item.KichCo,
@@ -227,7 +225,11 @@ public class AdminStockReceiptsController(AdminDbContext db) : ControllerBase
         }
 
         phieu.TongGiaTri = tongGiaTri;
-        db.ChiTietPhieuNhap.AddRange(chiTietList);
+        phieu.ChiTiet = chiTietList;
+        db.PhieuNhap.Add(phieu);
+
+        // EF Core tự bọc một SaveChanges có nhiều INSERT/UPDATE trong transaction.
+        // Nếu bất kỳ bước nào lỗi, toàn bộ phiếu + tồn kho sẽ rollback cùng nhau.
         await db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetById), new { id = phieu.Id }, new
