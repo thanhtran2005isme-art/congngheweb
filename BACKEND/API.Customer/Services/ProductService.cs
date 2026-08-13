@@ -21,14 +21,9 @@ public class ProductService(CustomerDbContext db) : IProductService
         {
             var rootCategory = ToCanonicalRootCategory(category);
             if (rootCategory is not null)
-            {
                 query = query.Where(p => p.Category == rootCategory || p.Category == category);
-            }
             else if (string.IsNullOrWhiteSpace(subcategory))
-            {
-                // Tương thích URL cũ: category=Áo thun trong khi DB lưu Áo thun ở DanhMucPhu.
                 query = query.Where(p => p.Subcategory == category || p.Category == category);
-            }
         }
 
         if (!string.IsNullOrWhiteSpace(subcategory))
@@ -36,8 +31,15 @@ public class ProductService(CustomerDbContext db) : IProductService
 
         if (!string.IsNullOrWhiteSpace(filter.Gender))
         {
-            var aliases = GetGenderAliases(filter.Gender);
-            query = query.Where(p => aliases.Contains(p.Gender));
+            var gender = RemoveDiacritics(filter.Gender).ToLowerInvariant().Replace(" ", string.Empty).Trim();
+            query = gender switch
+            {
+                "nu" or "women" or "woman" or "female" => query.Where(p => p.Gender == "Nu" || p.Gender == "Nữ"),
+                "nam" or "men" or "man" or "male" => query.Where(p => p.Gender == "Nam"),
+                "treem" or "kid" or "kids" or "children" => query.Where(p => p.Gender == "Tre em" || p.Gender == "Trẻ em" || p.Gender == "TreEm"),
+                "unisex" => query.Where(p => p.Gender == "Unisex"),
+                _ => query.Where(p => p.Gender == filter.Gender.Trim()),
+            };
         }
 
         if (!string.IsNullOrWhiteSpace(storefront?.Style))
@@ -52,31 +54,22 @@ public class ProductService(CustomerDbContext db) : IProductService
             query = query.Where(p => p.AgeGroup != null && p.AgeGroup == ageGroup);
         }
 
-        if (!string.IsNullOrWhiteSpace(storefront?.Collection)
-            && int.TryParse(storefront.Collection, out var collectionId))
-        {
+        if (!string.IsNullOrWhiteSpace(storefront?.Collection) && int.TryParse(storefront.Collection, out var collectionId))
             query = query.Where(p => p.CollectionId == collectionId);
-        }
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var keyword = filter.Search.Trim();
-            query = query.Where(p =>
-                p.Name.Contains(keyword)
+            query = query.Where(p => p.Name.Contains(keyword)
                 || p.Sku.Contains(keyword)
                 || p.Description.Contains(keyword)
                 || (p.ShortDescription != null && p.ShortDescription.Contains(keyword))
                 || (p.Subcategory != null && p.Subcategory.Contains(keyword)));
         }
 
-        if (filter.MinPrice.HasValue)
-            query = query.Where(p => p.Price >= filter.MinPrice.Value);
-
-        if (filter.MaxPrice.HasValue)
-            query = query.Where(p => p.Price <= filter.MaxPrice.Value);
-
-        if (storefront?.MinRating is > 0)
-            query = query.Where(p => p.Rating >= storefront.MinRating.Value);
+        if (filter.MinPrice.HasValue) query = query.Where(p => p.Price >= filter.MinPrice.Value);
+        if (filter.MaxPrice.HasValue) query = query.Where(p => p.Price <= filter.MaxPrice.Value);
+        if (storefront?.MinRating is > 0) query = query.Where(p => p.Rating >= storefront.MinRating.Value);
 
         foreach (var size in SplitFacetValues(storefront?.Sizes))
         {
@@ -90,14 +83,9 @@ public class ProductService(CustomerDbContext db) : IProductService
             query = query.Where(p => p.Colors != null && p.Colors.Contains(token));
         }
 
-        if (filter.IsNew == true)
-            query = query.Where(p => p.IsNew);
-
-        if (filter.IsSale == true)
-            query = query.Where(p => p.IsSale);
-
-        if (filter.IsBestSeller == true)
-            query = query.Where(p => p.IsBestSeller);
+        if (filter.IsNew == true) query = query.Where(p => p.IsNew);
+        if (filter.IsSale == true) query = query.Where(p => p.IsSale);
+        if (filter.IsBestSeller == true) query = query.Where(p => p.IsBestSeller);
 
         query = filter.SortBy switch
         {
@@ -112,33 +100,21 @@ public class ProductService(CustomerDbContext db) : IProductService
         var page = Math.Max(1, filter.Page);
         var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var totalCount = await query.CountAsync();
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(p => MapToDTO(p))
-            .ToListAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(p => MapToDTO(p)).ToListAsync();
 
-        return new PagedResult<ProductDTO>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
+        return new PagedResult<ProductDTO> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
     }
 
     public async Task<ProductDetailDTO?> GetByIdAsync(int id)
     {
-        var product = await db.Products
-            .Include(p => p.Reviews.Where(r => r.Status == "approved"))
+        var product = await db.Products.Include(p => p.Reviews.Where(r => r.Status == "approved"))
             .FirstOrDefaultAsync(p => p.Id == id && p.Status == "active");
         return product is null ? null : MapToDetailDTO(product);
     }
 
     public async Task<ProductDetailDTO?> GetBySlugAsync(string slug)
     {
-        var product = await db.Products
-            .Include(p => p.Reviews.Where(r => r.Status == "approved"))
+        var product = await db.Products.Include(p => p.Reviews.Where(r => r.Status == "approved"))
             .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == "active");
         return product is null ? null : MapToDetailDTO(product);
     }
@@ -156,33 +132,18 @@ public class ProductService(CustomerDbContext db) : IProductService
     {
         var product = await db.Products.FindAsync(productId);
         if (product is null) return [];
-        return await db.Products.Where(p => p.Status == "active" && p.Id != productId && p.Category == product.Category).OrderByDescending(p => p.SoldCount).Take(count).Select(p => MapToDTO(p)).ToListAsync();
+        return await db.Products.Where(p => p.Status == "active" && p.Id != productId && p.Category == product.Category)
+            .OrderByDescending(p => p.SoldCount).Take(count).Select(p => MapToDTO(p)).ToListAsync();
     }
 
-    private static string[] SplitFacetValues(string? value) =>
-        (value ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+    private static string[] SplitFacetValues(string? value) => (value ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
     private static string? ToCanonicalRootCategory(string value) => RemoveDiacritics(value).ToLowerInvariant().Trim() switch
     {
-        "ao" => "Ao",
-        "quan" => "Quan",
-        "vay" => "Vay",
-        "dam" => "Dam",
-        "phu kien" or "phukien" => "Phu kien",
-        _ => null,
-    };
-
-    private static string[] GetGenderAliases(string value) => RemoveDiacritics(value).ToLowerInvariant().Replace(" ", string.Empty) switch
-    {
-        "nu" or "women" or "woman" or "female" => ["Nu", "Nữ"],
-        "nam" or "men" or "man" or "male" => ["Nam"],
-        "treem" or "kid" or "kids" or "children" => ["Tre em", "Trẻ em", "TreEm"],
-        "unisex" => ["Unisex"],
-        _ => [value.Trim()],
+        "ao" => "Ao", "quan" => "Quan", "vay" => "Vay", "dam" => "Dam",
+        "phu kien" or "phukien" => "Phu kien", _ => null,
     };
 
     private static string RemoveDiacritics(string value)
