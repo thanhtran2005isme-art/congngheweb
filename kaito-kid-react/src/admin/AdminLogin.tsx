@@ -1,15 +1,21 @@
 // Trang đăng nhập riêng cho nhân viên/admin
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStaffAuth } from '../context/StaffAuthContext';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { login: staffLogin } = useStaffAuth();
+  const { login: staffLogin, isAuthenticated, loading: authLoading } = useStaffAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +30,19 @@ export default function AdminLogin() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     } else {
       setError(result.error || 'Đăng nhập thất bại');
     }
   };
+
+  if (authLoading || isAuthenticated) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0f172a' }}>
+        <div style={{ color: '#cbd5e1', fontSize: 14 }}>Đang xác thực phiên quản trị...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -63,7 +77,7 @@ export default function AdminLogin() {
         </div>
 
         {error && (
-          <div style={{
+          <div role="alert" style={{
             padding: '12px 16px',
             background: '#fef2f2',
             border: '1px solid #fecaca',
@@ -78,14 +92,16 @@ export default function AdminLogin() {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+            <label htmlFor="admin-email" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
               Email
             </label>
             <input
+              id="admin-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@kaitokid.vn"
+              autoComplete="username"
               autoFocus
               style={{
                 width: '100%',
@@ -99,14 +115,16 @@ export default function AdminLogin() {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+            <label htmlFor="admin-password" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
               Mật khẩu
             </label>
             <input
+              id="admin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="current-password"
               style={{
                 width: '100%',
                 padding: '12px 14px',
