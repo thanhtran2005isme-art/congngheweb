@@ -1,0 +1,161 @@
+/* Admin shell usability fixes — account menu, logout and keyboard/mobile states */
+
+.admin-wrapper .nav-link-button {
+  width: calc(100% - 8px);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admin-wrapper .nav-link-button:focus-visible,
+.admin-wrapper .admin-btn:focus-visible,
+.admin-wrapper .admin-info-button:focus-visible,
+.admin-wrapper .sidebar-logout-btn:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, .2);
+  outline-offset: 2px;
+}
+
+.admin-wrapper .admin-dropdown {
+  position: relative;
+  z-index: 1200;
+}
+
+.admin-wrapper .admin-btn {
+  cursor: pointer;
+}
+
+/* Keep hover support on desktop, but do not depend on it. */
+.admin-wrapper .admin-dropdown.is-open .admin-dropdown-menu,
+.admin-wrapper .admin-dropdown:focus-within .admin-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.admin-wrapper .admin-dropdown-menu {
+  pointer-events: none;
+  z-index: 1300;
+}
+
+.admin-wrapper .admin-dropdown-menu::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  height: 12px;
+}
+
+.admin-wrapper .admin-dropdown-action.logout-action {
+  color: #b42318;
+  font-weight: 750;
+}
+
+.admin-wrapper .admin-dropdown-action.logout-action:hover {
+  color: #b42318;
+  background: #fff1f0;
+}
+
+.admin-wrapper .sidebar-footer {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-wrapper .admin-info-button {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font-family: inherit;
+}
+
+.admin-wrapper .sidebar-footer-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.admin-wrapper .sidebar-logout-btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 0 13px;
+  border: 1px solid rgba(239, 68, 68, .16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .72);
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.admin-wrapper .sidebar-logout-btn:hover {
+  transform: translateY(-1px);
+  background: #fff1f0;
+  border-color: rgba(239, 68, 68, .3);
+  box-shadow: 0 7px 16px rgba(180, 35, 24, .08);
+}
+
+.admin-wrapper .sidebar.collapsed .sidebar-footer {
+  padding-inline: 10px;
+}
+
+.admin-wrapper .sidebar.collapsed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-wrapper .sidebar.collapsed .sidebar-logout-btn span,
+.admin-wrapper .sidebar.collapsed .admin-details {
+  display: none;
+}
+
+.admin-wrapper .sidebar.collapsed .admin-info-button {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.admin-wrapper .account-menu-meta {
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid rgba(226, 232, 240, .7);
+}
+
+.admin-wrapper .account-menu-meta strong,
+.admin-wrapper .account-menu-meta span {
+  display: block;
+}
+
+.admin-wrapper .account-menu-meta strong {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.admin-wrapper .account-menu-meta span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .admin-wrapper .admin-dropdown-menu {
+    position: fixed;
+    top: 70px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .admin-wrapper .admin-btn > span {
+    display: none;
+  }
+}
