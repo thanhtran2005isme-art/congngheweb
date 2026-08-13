@@ -29,7 +29,6 @@ import './styles/chitiet.css'
 // Admin CSS
 import './styles/admin/admin-common.css'
 import './styles/admin/admin-layout.css'
-import './styles/admin/admin-shell-fixes.css'
 import './styles/admin/admin-dashboard.css'
 import './styles/admin/admin-profile.css'
 import './styles/admin/admin-products.css'
@@ -75,6 +74,9 @@ import './styles/checkout-ivy.css'
 
 // Admin page scene variants
 import './styles/admin/admin-page-variants.css'
+
+// Admin shell fixes must load last so legacy hover/dropdown rules cannot override them.
+import './styles/admin/admin-shell-fixes.css'
 
 import App from './App.tsx'
 import { registerServiceWorker } from './registerSW';
