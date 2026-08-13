@@ -93,7 +93,7 @@ export const adminApi = {
   },
 
   /**
-   * Get order statistics
+   * Get all-time order statistics
    */
   async getOrderStats(): Promise<ApiResponse<OrderStats>> {
     try {
@@ -111,7 +111,7 @@ export const adminApi = {
   },
 
   /**
-   * Get revenue data for chart
+   * Get completed-order revenue data for a rolling time window.
    */
   async getRevenueData(days: number = 30): Promise<ApiResponse<RevenueDataPoint[]>> {
     try {
@@ -129,11 +129,13 @@ export const adminApi = {
   },
 
   /**
-   * Get top selling products
+   * Get top selling products in the same rolling window used by dashboard analytics.
    */
-  async getTopProducts(count: number = 10): Promise<ApiResponse<TopProduct[]>> {
+  async getTopProducts(count: number = 10, days: number = 30): Promise<ApiResponse<TopProduct[]>> {
     try {
-      const response = await apiClient.get<TopProductDTO[]>(`/api/admin/reports/top-products?count=${count}`);
+      const response = await apiClient.get<TopProductDTO[]>(
+        `/api/admin/reports/top-products?count=${count}&days=${days}`,
+      );
       const products = response.data.map((dto) => ({
         id: dto.id,
         name: dto.tenSanPham,
