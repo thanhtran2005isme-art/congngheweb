@@ -1,5 +1,6 @@
 using API.Admin.Data;
 using DbHelper;
+using Microsoft.EntityFrameworkCore;
 using Shared.Authorization;
 using Shared.Extensions;
 
@@ -36,6 +37,28 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Compatibility repair cho database được tạo từ KaitoKid_Database.sql cũ.
+// Model TonKhoLichSu đã dùng TenSanPham nhưng schema cũ chưa có cột này,
+// khiến tạo phiếu nhập/điều chỉnh kho lỗi 500 khi SaveChanges.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
+    await db.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'dbo.TonKho_LichSu', N'U') IS NOT NULL
+           AND COL_LENGTH(N'dbo.TonKho_LichSu', N'TenSanPham') IS NULL
+        BEGIN
+            ALTER TABLE dbo.TonKho_LichSu
+            ADD TenSanPham NVARCHAR(255) NOT NULL
+                CONSTRAINT DF_TonKho_LichSu_TenSanPham DEFAULT N'' WITH VALUES;
+
+            UPDATE ls
+            SET ls.TenSanPham = sp.TenSanPham
+            FROM dbo.TonKho_LichSu AS ls
+            INNER JOIN dbo.SanPham AS sp ON sp.Id = ls.SanPhamId;
+        END
+        """);
+}
 
 if (app.Environment.IsDevelopment())
 {
