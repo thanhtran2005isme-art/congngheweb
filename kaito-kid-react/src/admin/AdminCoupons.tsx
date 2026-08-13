@@ -1,686 +1,476 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAdminUi } from '../components/admin/AdminUiProvider';
-import { formatCurrency } from '../utils/format';
-import { couponApi, type CouponDTO } from '../services/api';
-import {
-  calculateCouponDiscount,
-  getCouponStatus,
-  type Coupon,
-  type CouponDiscountType,
-} from '../utils/marketingConfig';
 import AdminIcon from '../components/admin/AdminIcon';
+import CouponDrawer, { type CouponFormValues } from '../components/admin/coupons/CouponDrawer';
+import { couponApi, type CouponDTO } from '../services/api';
+import { formatCurrency } from '../utils/format';
+import type { Coupon, CouponDiscountType, CouponStatus } from '../utils/marketingConfig';
+import {
+  COUPON_STATUS_META,
+  couponRemainingLabel,
+  couponUsagePercent,
+  formatCouponDate,
+  getAdminCouponStatus,
+  isCouponExpiringSoon,
+} from '../utils/couponAdmin';
 
+type StatusFilter = 'all' | CouponStatus;
+type SortMode = 'newest' | 'expiry' | 'usage';
 
-interface CouponFormState {
-  code: string;
-  description: string;
-  discountType: CouponDiscountType;
-  discountValue: number;
-  maxDiscount?: number;
-  minOrder: number;
-  quantity: number;
-  used: number;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'paused';
-  isPublic: boolean;
-}
+const PAGE_SIZE = 10;
 
-const DEFAULT_FORM: CouponFormState = {
-  code: '',
-  description: '',
-  discountType: 'percent',
-  discountValue: 10,
-  maxDiscount: 0,
-  minOrder: 0,
-  quantity: 100,
-  used: 0,
-  startDate: new Date().toISOString().slice(0, 10),
-  endDate: '',
-  status: 'active',
-  isPublic: true,
-};
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'active', label: 'Đang hoạt động' },
+  { value: 'scheduled', label: 'Sắp áp dụng' },
+  { value: 'paused', label: 'Tạm dừng' },
+  { value: 'exhausted', label: 'Hết lượt' },
+  { value: 'expired', label: 'Hết hạn' },
+];
 
-const STATUS_LABELS = {
-  active: 'Dang hoạt động',
-  scheduled: 'Sắp áp dụng',
-  exhausted: 'Het luot',
-  expired: 'Het han',
-  paused: 'Tạm dừng',
-} as const;
-
-function formatDate(value: string): string {
-  if (!value) {
-    return '--';
-  }
-
-  return new Intl.DateTimeFormat('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value));
-}
-
-// Map backend DTO to frontend Coupon
 function mapDtoToCoupon(dto: CouponDTO): Coupon {
   return {
-    id: dto.id,
-    code: dto.maCoupon || '',
-    description: dto.moTa || '',
-    discountType: (dto.loaiGiamGia === 'fixed' ? 'fixed' : 'percent') as CouponDiscountType,
-    discountValue: dto.giaTri || 0,
-    maxDiscount: dto.giamToiDa || undefined,
-    minOrder: dto.donToiThieu || 0,
-    quantity: dto.soLuotDung || 0,
-    used: dto.daSuDung || 0,
-    startDate: dto.ngayBatDau ? dto.ngayBatDau.slice(0, 10) : '',
-    endDate: dto.ngayKetThuc ? dto.ngayKetThuc.slice(0, 10) : '',
+    id: Number(dto.id),
+    code: String(dto.maCoupon || '').trim().toUpperCase(),
+    description: String(dto.moTa || '').trim(),
+    discountType: (String(dto.loaiGiamGia).toLowerCase() === 'fixed' ? 'fixed' : 'percent') as CouponDiscountType,
+    discountValue: Number(dto.giaTri) || 0,
+    maxDiscount: dto.giamToiDa == null ? undefined : Number(dto.giamToiDa),
+    minOrder: Number(dto.donToiThieu) || 0,
+    quantity: Number(dto.soLuotDung) || 0,
+    used: Number(dto.daSuDung) || 0,
+    startDate: String(dto.ngayBatDau || '').slice(0, 10),
+    endDate: String(dto.ngayKetThuc || '').slice(0, 10),
     status: dto.trangThai ? 'active' : 'paused',
     isPublic: true,
-    createdAt: dto.ngayTao || new Date().toISOString(),
+    createdAt: dto.ngayTao || new Date(0).toISOString(),
   };
+}
+
+function payloadFromValues(values: CouponFormValues) {
+  return {
+    maCoupon: values.code.trim().toUpperCase(),
+    loaiGiamGia: values.discountType,
+    giaTri: values.discountValue,
+    donToiThieu: values.minOrder > 0 ? values.minOrder : undefined,
+    giamToiDa: values.discountType === 'percent' && values.maxDiscount > 0 ? values.maxDiscount : undefined,
+    soLuotDung: Math.max(0, values.quantity),
+    ngayBatDau: values.startDate,
+    ngayKetThuc: values.endDate,
+    trangThai: values.status === 'active',
+    moTa: values.description.trim() || undefined,
+  };
+}
+
+function payloadFromCoupon(coupon: Coupon, active: boolean) {
+  return {
+    maCoupon: coupon.code,
+    loaiGiamGia: coupon.discountType,
+    giaTri: coupon.discountValue,
+    donToiThieu: coupon.minOrder > 0 ? coupon.minOrder : undefined,
+    giamToiDa: coupon.discountType === 'percent' && (coupon.maxDiscount || 0) > 0 ? coupon.maxDiscount : undefined,
+    soLuotDung: coupon.quantity,
+    ngayBatDau: coupon.startDate,
+    ngayKetThuc: coupon.endDate,
+    trangThai: active,
+    moTa: coupon.description || undefined,
+  };
+}
+
+function discountLabel(coupon: Coupon): string {
+  return coupon.discountType === 'percent'
+    ? `${coupon.discountValue}%`
+    : formatCurrency(coupon.discountValue);
 }
 
 export default function AdminCoupons() {
   const { confirm } = useAdminUi();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | keyof typeof STATUS_LABELS>('all');
-  const [form, setForm] = useState<CouponFormState>(DEFAULT_FORM);
-  const [feedback, setFeedback] = useState('');
-  const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [page, setPage] = useState(1);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [rowBusyId, setRowBusyId] = useState<number | null>(null);
 
-  const loadCoupons = async () => {
-    setLoading(true);
+  const loadCoupons = useCallback(async (silent = false) => {
+    silent ? setRefreshing(true) : setLoading(true);
     const result = await couponApi.getAll();
     if (result.success && result.data) {
       setCoupons(result.data.map(mapDtoToCoupon));
+      setLoadError('');
     } else {
-      setCoupons([]);
+      setLoadError(result.error || 'Không thể tải danh sách mã giảm giá.');
     }
     setLoading(false);
-  };
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
     void loadCoupons();
-  }, []);
+  }, [loadCoupons]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, sortMode, statusFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<CouponStatus, number> = { active: 0, scheduled: 0, paused: 0, exhausted: 0, expired: 0 };
+    coupons.forEach((coupon) => { counts[getAdminCouponStatus(coupon)] += 1; });
+    return counts;
+  }, [coupons]);
+
+  const analytics = useMemo(() => {
+    const totalUsed = coupons.reduce((sum, coupon) => sum + coupon.used, 0);
+    const expiringSoon = coupons.filter((coupon) => isCouponExpiringSoon(coupon)).length;
+    const unlimited = coupons.filter((coupon) => coupon.quantity === 0).length;
+    const attention = statusCounts.expired + statusCounts.exhausted;
+    return { totalUsed, expiringSoon, unlimited, attention };
+  }, [coupons, statusCounts]);
 
   const filteredCoupons = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
+    const keyword = deferredSearch.trim().toLocaleLowerCase('vi-VN');
+    const result = coupons.filter((coupon) => {
+      if (statusFilter !== 'all' && getAdminCouponStatus(coupon) !== statusFilter) return false;
+      if (!keyword) return true;
+      return coupon.code.toLocaleLowerCase('vi-VN').includes(keyword)
+        || coupon.description.toLocaleLowerCase('vi-VN').includes(keyword);
+    });
 
-    return coupons
-      .filter((coupon) => {
-        const computedStatus = getCouponStatus(coupon);
-        const matchesSearch = !normalizedSearch
-          || coupon.code.toLocaleLowerCase().includes(normalizedSearch)
-          || coupon.description.toLocaleLowerCase().includes(normalizedSearch);
-        const matchesStatus = statusFilter === 'all' || computedStatus === statusFilter;
+    return result.sort((left, right) => {
+      if (sortMode === 'expiry') return left.endDate.localeCompare(right.endDate);
+      if (sortMode === 'usage') {
+        const leftRate = left.quantity > 0 ? left.used / left.quantity : 0;
+        const rightRate = right.quantity > 0 ? right.used / right.quantity : 0;
+        return rightRate - leftRate || right.used - left.used;
+      }
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    });
+  }, [coupons, deferredSearch, sortMode, statusFilter]);
 
-        return matchesSearch && matchesStatus;
-      })
-      .sort((left, right) => new Date(left.endDate).getTime() - new Date(right.endDate).getTime());
-  }, [coupons, searchTerm, statusFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredCoupons.length / PAGE_SIZE));
+  const visibleCoupons = filteredCoupons.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const stats = useMemo(() => ({
-    active: coupons.filter((coupon) => getCouponStatus(coupon) === 'active').length,
-    scheduled: coupons.filter((coupon) => getCouponStatus(coupon) === 'scheduled').length,
-    exhausted: coupons.filter((coupon) => getCouponStatus(coupon) === 'exhausted').length,
-    expired: coupons.filter((coupon) => getCouponStatus(coupon) === 'expired').length,
-  }), [coupons]);
-
-  const resetForm = () => {
-    setForm(DEFAULT_FORM);
-    setEditId(null);
-    setError('');
-  };
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const openCreate = () => {
-    resetForm();
-    setShowForm(true);
+    setEditingCoupon(null);
+    setFormError('');
+    setDrawerOpen(true);
   };
 
   const openEdit = (coupon: Coupon) => {
-    setEditId(coupon.id);
-    setForm({
-      code: coupon.code,
-      description: coupon.description,
-      discountType: coupon.discountType,
-      discountValue: coupon.discountValue,
-      maxDiscount: coupon.maxDiscount,
-      minOrder: coupon.minOrder,
-      quantity: coupon.quantity,
-      used: coupon.used,
-      startDate: coupon.startDate,
-      endDate: coupon.endDate,
-      status: coupon.status === 'paused' ? 'paused' : 'active',
-      isPublic: coupon.isPublic,
-    });
-    setError('');
-    setShowForm(true);
+    setEditingCoupon(coupon);
+    setFormError('');
+    setDrawerOpen(true);
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    resetForm();
+  const closeDrawer = () => {
+    if (saving) return;
+    setDrawerOpen(false);
+    setEditingCoupon(null);
+    setFormError('');
   };
 
-  const showFeedback = (message: string) => {
-    setFeedback(message);
-    window.setTimeout(() => setFeedback(''), 3000);
-  };
+  const saveCoupon = async (values: CouponFormValues) => {
+    setSaving(true);
+    setFormError('');
+    const payload = payloadFromValues(values);
+    const result = editingCoupon
+      ? await couponApi.update(editingCoupon.id, payload)
+      : await couponApi.create(payload);
+    setSaving(false);
 
-  const handleSave = async () => {
-    if (!form.code.trim() || !form.endDate) {
-      setError('Cần nhập ma coupon và ngay het han.');
+    if (!result.success) {
+      setFormError(result.error || 'Không thể lưu mã giảm giá.');
       return;
     }
 
-    if (new Date(form.endDate).getTime() < new Date(form.startDate).getTime()) {
-      setError('Ngày hết hạn phải sau ngày bắt đầu.');
-      return;
-    }
+    toast.success(editingCoupon ? `Đã cập nhật ${values.code}` : `Đã tạo mã ${values.code}`);
+    setDrawerOpen(false);
+    setEditingCoupon(null);
+    await loadCoupons(true);
+  };
 
-    const normalizedCode = form.code.trim().toUpperCase();
-    const duplicateCode = coupons.find((coupon) => coupon.code === normalizedCode && coupon.id !== editId);
-
-    if (duplicateCode) {
-      setError('Ma coupon này đã tồn tại.');
-      return;
-    }
-
-    const payload = {
-      maCoupon: normalizedCode,
-      loaiGiamGia: form.discountType,
-      giaTri: Math.max(0, form.discountValue),
-      donToiThieu: form.minOrder > 0 ? form.minOrder : undefined,
-      giamToiDa: form.discountType === 'percent' && (form.maxDiscount || 0) > 0 ? form.maxDiscount : undefined,
-      soLuotDung: Math.max(0, form.quantity),
-      ngayBatDau: form.startDate,
-      ngayKetThuc: form.endDate,
-      trangThai: form.status === 'active',
-      moTa: form.description.trim() || undefined,
-    };
-
+  const copyCode = async (code: string) => {
     try {
-      if (editId) {
-        const result = await couponApi.update(editId, payload);
-        if (!result.success) {
-          setError(result.error || 'Không thể cập nhật coupon.');
-          return;
-        }
-        showFeedback('Đã cập nhật coupon.');
-      } else {
-        const result = await couponApi.create(payload);
-        if (!result.success) {
-          setError(result.error || 'Không thể tạo coupon.');
-          return;
-        }
-        showFeedback('Đã tạo coupon mới.');
-      }
-      await loadCoupons();
-      closeForm();
+      await navigator.clipboard.writeText(code);
+      toast.success(`Đã sao chép ${code}`);
     } catch {
-      setError('Lỗi kết nối server.');
+      toast.error('Trình duyệt không cho phép sao chép tự động.');
     }
   };
 
-  const handleDelete = async (couponId: number) => {
-    const selectedCoupon = coupons.find((coupon) => coupon.id === couponId);
+  const togglePaused = async (coupon: Coupon) => {
+    if (rowBusyId !== null) return;
+    const isPaused = coupon.status === 'paused';
 
-    if (!selectedCoupon) {
+    if (isPaused) {
+      const nextStatus = getAdminCouponStatus({ ...coupon, status: 'active' });
+      if (nextStatus === 'expired') {
+        toast.error('Mã đã hết hạn. Hãy chỉnh ngày kết thúc trước khi bật lại.');
+        openEdit(coupon);
+        return;
+      }
+      if (nextStatus === 'exhausted') {
+        toast.error('Mã đã hết lượt. Hãy tăng giới hạn trước khi bật lại.');
+        openEdit(coupon);
+        return;
+      }
+    }
+
+    setRowBusyId(coupon.id);
+    const result = await couponApi.update(coupon.id, payloadFromCoupon(coupon, isPaused));
+    setRowBusyId(null);
+    if (!result.success) {
+      toast.error(result.error || 'Không thể cập nhật trạng thái mã.');
+      return;
+    }
+    toast.success(isPaused ? `Đã bật lại ${coupon.code}` : `Đã tạm dừng ${coupon.code}`);
+    await loadCoupons(true);
+  };
+
+  const deleteCoupon = async (coupon: Coupon) => {
+    if (coupon.used > 0) {
+      toast.error('Mã đã có lịch sử sử dụng. Hãy tạm dừng thay vì xóa.');
       return;
     }
 
     const accepted = await confirm({
-      title: 'Xóa ma giảm giá',
-      message: `Ma ${selectedCoupon.code} sẽ bị gỡ khỏi hệ thống coupon hiện tại.`,
-      confirmLabel: 'Xóa coupon',
+      title: 'Xóa mã giảm giá',
+      message: `Xóa vĩnh viễn mã ${coupon.code}? Thao tác này chỉ được phép vì mã chưa phát sinh đơn hàng.`,
+      confirmLabel: 'Xóa mã',
       tone: 'danger',
       icon: 'fa-ticket',
     });
+    if (!accepted) return;
 
-    if (!accepted) {
+    setRowBusyId(coupon.id);
+    const result = await couponApi.delete(coupon.id);
+    setRowBusyId(null);
+    if (!result.success) {
+      toast.error(result.error || 'Không thể xóa mã giảm giá.');
       return;
     }
-
-    const result = await couponApi.delete(couponId);
-    if (result.success) {
-      showFeedback('Đã xóa coupon.');
-      await loadCoupons();
-    } else {
-      setFeedback(result.error || 'Không thể xóa coupon.');
-    }
+    toast.success(`Đã xóa ${coupon.code}`);
+    await loadCoupons(true);
   };
-
-  const togglePausedState = async (couponId: number) => {
-    const coupon = coupons.find((c) => c.id === couponId);
-    if (!coupon) return;
-
-    const newStatus = coupon.status === 'paused' ? true : false;
-    const result = await couponApi.update(couponId, {
-      maCoupon: coupon.code,
-      loaiGiamGia: coupon.discountType,
-      giaTri: coupon.discountValue,
-      donToiThieu: coupon.minOrder > 0 ? coupon.minOrder : undefined,
-      giamToiDa: coupon.maxDiscount,
-      soLuotDung: coupon.quantity,
-      ngayBatDau: coupon.startDate,
-      ngayKetThuc: coupon.endDate,
-      trangThai: newStatus,
-      moTa: coupon.description || undefined,
-    });
-
-    if (result.success) {
-      showFeedback('Đã cập nhật trạng thái coupon.');
-      await loadCoupons();
-    }
-  };
-
-  const handleCopyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setFeedback(`Đã copy mã ${code}.`);
-      window.setTimeout(() => setFeedback(''), 2000);
-    } catch {
-      setFeedback('Không the copy ma trên trinh duyet hiện tại.');
-      window.setTimeout(() => setFeedback(''), 2000);
-    }
-  };
-
-  const previewDiscount = useMemo(() => (
-    calculateCouponDiscount({
-      id: editId || 0,
-      code: form.code,
-      description: form.description,
-      discountType: form.discountType,
-      discountValue: form.discountValue,
-      maxDiscount: form.maxDiscount,
-      minOrder: form.minOrder,
-      quantity: form.quantity,
-      used: form.used,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      status: form.status,
-      isPublic: form.isPublic,
-      createdAt: new Date().toISOString(),
-    }, 800000)
-  ), [editId, form]);
-
-  const previewCoupon: Coupon = useMemo(() => ({
-    id: editId || 0,
-    code: form.code,
-    description: form.description,
-    discountType: form.discountType,
-    discountValue: form.discountValue,
-    maxDiscount: form.maxDiscount,
-    minOrder: form.minOrder,
-    quantity: form.quantity,
-    used: form.used,
-    startDate: form.startDate,
-    endDate: form.endDate,
-    status: form.status,
-    isPublic: form.isPublic,
-    createdAt: new Date().toISOString(),
-  }), [editId, form]);
-
-  const previewCouponStatus = getCouponStatus(previewCoupon);
 
   return (
-    <div className="marketing-page">
-      <div className="page-header">
-        <div>
-          <h1>Ma giảm giá</h1>
-          <p className="marketing-page-subtitle">Theo dõi tiến độ sử dụng, lọc theo trạng thái và tạm dừng nhanh mã coupon khi cần.</p>
+    <main className="coupons-v2">
+      <section className="coupon-page-header">
+        <div className="coupon-page-heading">
+          <span className="coupon-eyebrow">Khuyến mãi / Mã giảm giá</span>
+          <h1>Quản lý mã giảm giá</h1>
+          <p>Theo dõi hiệu lực, lượt sử dụng và kiểm soát coupon đang áp dụng tại checkout.</p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-primary" onClick={openCreate}>
-            <AdminIcon name="fa fa-plus" /> Thêm ma
+        <div className="coupon-header-actions">
+          <button className="coupon-btn is-secondary" type="button" onClick={() => void loadCoupons(true)} disabled={refreshing}>
+            <AdminIcon name="fa-refresh" /> {refreshing ? 'Đang làm mới...' : 'Làm mới'}
+          </button>
+          <button className="coupon-btn is-primary" type="button" onClick={openCreate}>
+            <AdminIcon name="fa-plus" /> Tạo mã giảm giá
           </button>
         </div>
-      </div>
+      </section>
 
-      {feedback ? (
-        <div className="alert alert-success marketing-feedback">
-          <AdminIcon name="fa fa-check-circle" /> {feedback}
-        </div>
-      ) : null}
+      <section className="coupon-kpi-grid" aria-label="Tổng quan coupon">
+        <article className="coupon-kpi-card is-active">
+          <span className="coupon-kpi-icon"><AdminIcon name="fa-ticket" /></span>
+          <div><small>Đang hoạt động</small><strong>{statusCounts.active}</strong><p>Mã khách có thể dùng ngay</p></div>
+        </article>
+        <article className="coupon-kpi-card is-scheduled">
+          <span className="coupon-kpi-icon"><AdminIcon name="fa-calendar-check" /></span>
+          <div><small>Sắp áp dụng</small><strong>{statusCounts.scheduled}</strong><p>{analytics.expiringSoon} mã hết hạn trong 7 ngày</p></div>
+        </article>
+        <article className="coupon-kpi-card is-usage">
+          <span className="coupon-kpi-icon"><AdminIcon name="fa-chart-line" /></span>
+          <div><small>Tổng lượt đã dùng</small><strong>{analytics.totalUsed.toLocaleString('vi-VN')}</strong><p>{analytics.unlimited} mã không giới hạn lượt</p></div>
+        </article>
+        <article className="coupon-kpi-card is-attention">
+          <span className="coupon-kpi-icon"><AdminIcon name="fa-circle-exclamation" /></span>
+          <div><small>Cần xử lý</small><strong>{analytics.attention}</strong><p>Hết hạn hoặc đã hết lượt</p></div>
+        </article>
+      </section>
 
-      <div className="stats-grid-small">
-        <div className="stat-card-small">
-          <div className="stat-icon-small completed">
-            <AdminIcon name="fa fa-ticket" />
-          </div>
-          <div className="stat-content-small">
-            <span className="stat-label-small">Dang hoạt động</span>
-            <h3 className="stat-value-small">{stats.active}</h3>
-          </div>
+      <section className="coupon-safety-strip">
+        <span className="coupon-safety-icon"><AdminIcon name="fa-shield-alt" /></span>
+        <div>
+          <strong>Coupon được bảo toàn theo lịch sử đơn hàng</strong>
+          <p>Lượt sử dụng do checkout cập nhật. Mã đã phát sinh đơn không thể đổi tên hoặc xóa cứng; hãy tạm dừng khi cần ngưng áp dụng.</p>
         </div>
-        <div className="stat-card-small">
-          <div className="stat-icon-small shipping">
-            <AdminIcon name="fa fa-hourglass-half" />
-          </div>
-          <div className="stat-content-small">
-            <span className="stat-label-small">Sắp áp dụng</span>
-            <h3 className="stat-value-small">{stats.scheduled}</h3>
-          </div>
+        <div className="coupon-safety-facts">
+          <span><b>{statusCounts.paused}</b> tạm dừng</span>
+          <span><b>{statusCounts.exhausted}</b> hết lượt</span>
+          <span><b>{statusCounts.expired}</b> hết hạn</span>
         </div>
-        <div className="stat-card-small">
-          <div className="stat-icon-small pending">
-            <AdminIcon name="fa fa-ban" />
-          </div>
-          <div className="stat-content-small">
-            <span className="stat-label-small">Het luot</span>
-            <h3 className="stat-value-small">{stats.exhausted}</h3>
-          </div>
-        </div>
-        <div className="stat-card-small">
-          <div className="stat-icon-small cancelled">
-            <AdminIcon name="fa fa-clock" />
-          </div>
-          <div className="stat-content-small">
-            <span className="stat-label-small">Het han</span>
-            <h3 className="stat-value-small">{stats.expired}</h3>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <div className="table-card">
-        <div className="filters-bar marketing-filters">
-          <input
-            className="search-input"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Tim theo ma coupon hoặc mô tả..."
-          />
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Dang hoạt động</option>
-            <option value="scheduled">Sắp áp dụng</option>
-            <option value="paused">Tạm dừng</option>
-            <option value="exhausted">Het luot</option>
-            <option value="expired">Het han</option>
-          </select>
+      {loadError && (
+        <section className="coupon-load-error" role="alert">
+          <AdminIcon name="fa-triangle-exclamation" />
+          <div><strong>Không tải được dữ liệu coupon</strong><p>{loadError}</p></div>
+          <button type="button" className="coupon-btn is-secondary" onClick={() => void loadCoupons()}>Thử lại</button>
+        </section>
+      )}
+
+      <section className="coupon-workspace">
+        <div className="coupon-toolbar">
+          <label className="coupon-search">
+            <AdminIcon name="fa-search" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã hoặc mô tả..." />
+            {search && <button type="button" onClick={() => setSearch('')} aria-label="Xóa tìm kiếm"><AdminIcon name="fa-times" /></button>}
+          </label>
+          <label className="coupon-sort">
+            <span>Sắp xếp</span>
+            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+              <option value="newest">Mới tạo gần đây</option>
+              <option value="expiry">Hết hạn sớm nhất</option>
+              <option value="usage">Tỷ lệ dùng cao nhất</option>
+            </select>
+          </label>
         </div>
 
-        <div className="table-responsive">
-          <table className="data-table">
+        <div className="coupon-status-tabs" role="tablist" aria-label="Lọc trạng thái coupon">
+          {STATUS_FILTERS.map((item) => {
+            const count = item.value === 'all' ? coupons.length : statusCounts[item.value];
+            return (
+              <button
+                key={item.value}
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === item.value}
+                className={statusFilter === item.value ? 'is-active' : ''}
+                onClick={() => setStatusFilter(item.value)}
+              >
+                {item.label}<span>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="coupon-table-shell">
+          <table className="coupon-table">
             <thead>
               <tr>
-                <th>Coupon</th>
-                <th className="marketing-col-value">Giá trị</th>
-                <th className="marketing-col-progress">Tiến độ sử dụng</th>
-                <th className="marketing-col-status">Trạng thái</th>
-                <th className="marketing-col-dates">Hieu luc</th>
-                <th className="marketing-col-actions">Thao tac</th>
+                <th>Mã giảm giá</th>
+                <th>Ưu đãi & điều kiện</th>
+                <th>Sử dụng</th>
+                <th>Hiệu lực</th>
+                <th>Trạng thái</th>
+                <th aria-label="Thao tác" />
               </tr>
             </thead>
             <tbody>
-              {filteredCoupons.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="loading-row">Chưa có coupon phù hợp bộ lọc.</td>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr className="coupon-skeleton-row" key={index}>
+                    <td colSpan={6}><span /></td>
+                  </tr>
+                ))
+              ) : visibleCoupons.length === 0 ? (
+                <tr className="coupon-empty-row">
+                  <td colSpan={6}>
+                    <div className="coupon-empty-state">
+                      <span><AdminIcon name="fa-ticket" /></span>
+                      <h3>Không có mã phù hợp</h3>
+                      <p>{coupons.length === 0 ? 'Tạo mã đầu tiên để bắt đầu chiến dịch ưu đãi.' : 'Thử xóa từ khóa hoặc chuyển sang trạng thái khác.'}</p>
+                      {coupons.length === 0
+                        ? <button type="button" className="coupon-btn is-primary" onClick={openCreate}><AdminIcon name="fa-plus" /> Tạo mã</button>
+                        : <button type="button" className="coupon-btn is-secondary" onClick={() => { setSearch(''); setStatusFilter('all'); }}>Xóa bộ lọc</button>}
+                    </div>
+                  </td>
                 </tr>
-              ) : (
-                filteredCoupons.map((coupon) => {
-                  const computedStatus = getCouponStatus(coupon);
-                  const usagePercent = coupon.quantity > 0 ? Math.min(100, Math.round(coupon.used / coupon.quantity * 100)) : 0;
-
-                  return (
-                    <tr key={coupon.id}>
-                      <td>
-                        <div className="marketing-code-cell">
-                          <strong>{coupon.code}</strong>
-                          <span>{coupon.description || 'Không có mô tả'}</span>
+              ) : visibleCoupons.map((coupon) => {
+                const status = getAdminCouponStatus(coupon);
+                const usage = couponUsagePercent(coupon);
+                const busy = rowBusyId === coupon.id;
+                const canPause = status === 'active' || status === 'scheduled' || coupon.status === 'paused';
+                return (
+                  <tr key={coupon.id} className={`is-${status}`}>
+                    <td data-label="Mã giảm giá">
+                      <div className="coupon-code-cell">
+                        <button type="button" onClick={() => void copyCode(coupon.code)} title="Sao chép mã">{coupon.code}<AdminIcon name="fa-copy" /></button>
+                        <p>{coupon.description || 'Không có mô tả'}</p>
+                      </div>
+                    </td>
+                    <td data-label="Ưu đãi">
+                      <div className="coupon-value-cell">
+                        <strong>{discountLabel(coupon)}</strong>
+                        <span>Đơn tối thiểu: {coupon.minOrder > 0 ? formatCurrency(coupon.minOrder) : 'Không giới hạn'}</span>
+                        {coupon.discountType === 'percent' && coupon.maxDiscount ? <span>Trần giảm: {formatCurrency(coupon.maxDiscount)}</span> : null}
+                      </div>
+                    </td>
+                    <td data-label="Sử dụng">
+                      <div className="coupon-usage-cell">
+                        <div className="coupon-usage-head">
+                          <strong>{coupon.used.toLocaleString('vi-VN')}{coupon.quantity > 0 ? ` / ${coupon.quantity.toLocaleString('vi-VN')}` : ''}</strong>
+                          <span>{usage == null ? '∞' : `${usage}%`}</span>
                         </div>
-                      </td>
-                      <td>
-                        <div className="marketing-value-cell">
-                          <strong>{coupon.discountType === 'percent' ? `${coupon.discountValue}%` : formatCurrency(coupon.discountValue)}</strong>
-                          <span>Don tối thiểu: {coupon.minOrder > 0 ? formatCurrency(coupon.minOrder) : 'Không gioi han'}</span>
-                          {coupon.discountType === 'percent' && coupon.maxDiscount ? (
-                            <span>Trần giảm: {formatCurrency(coupon.maxDiscount)}</span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="marketing-progress-cell">
-                          <div className="marketing-progress-bar">
-                            <progress className="marketing-progress-track" value={usagePercent} max={100} />
-                          </div>
-                          <strong>{coupon.used}/{coupon.quantity}</strong>
-                          <span>{usagePercent}% đã dùng</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`marketing-status-pill ${computedStatus}`}>{STATUS_LABELS[computedStatus]}</span>
-                      </td>
-                      <td>
-                        <div className="marketing-date-stack">
-                          <strong>{formatDate(coupon.startDate)} - {formatDate(coupon.endDate)}</strong>
-                          <span>{coupon.isPublic ? 'Công khai' : 'Nội bộ'}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="marketing-row-actions">
-                          <button className="btn-action view" onClick={() => handleCopyCode(coupon.code)} title="Copy mã">
-                            <AdminIcon name="fa fa-copy" />
+                        <div className={`coupon-usage-track ${usage == null ? 'is-unlimited' : ''}`}><span style={{ width: `${usage ?? Math.min(100, Math.max(8, coupon.used))}%` }} /></div>
+                        <small>{couponRemainingLabel(coupon)}</small>
+                      </div>
+                    </td>
+                    <td data-label="Hiệu lực">
+                      <div className="coupon-date-cell">
+                        <strong>{formatCouponDate(coupon.startDate)} → {formatCouponDate(coupon.endDate)}</strong>
+                        <span>{isCouponExpiringSoon(coupon) ? 'Sắp hết hạn trong 7 ngày' : `Tạo ${formatCouponDate(coupon.createdAt)}`}</span>
+                      </div>
+                    </td>
+                    <td data-label="Trạng thái">
+                      <span className={`coupon-status-badge is-${status}`}><i />{COUPON_STATUS_META[status].label}</span>
+                    </td>
+                    <td data-label="Thao tác">
+                      <div className="coupon-row-actions">
+                        <button type="button" onClick={() => void copyCode(coupon.code)} aria-label={`Sao chép ${coupon.code}`} title="Sao chép"><AdminIcon name="fa-copy" /></button>
+                        <button type="button" onClick={() => openEdit(coupon)} aria-label={`Chỉnh sửa ${coupon.code}`} title="Chỉnh sửa"><AdminIcon name="fa-pen" /></button>
+                        {canPause && (
+                          <button type="button" disabled={busy} onClick={() => void togglePaused(coupon)} aria-label={coupon.status === 'paused' ? `Bật ${coupon.code}` : `Tạm dừng ${coupon.code}`} title={coupon.status === 'paused' ? 'Bật lại' : 'Tạm dừng'}>
+                            <AdminIcon name={busy ? 'fa-spinner' : coupon.status === 'paused' ? 'fa-play' : 'fa-pause'} />
                           </button>
-                          <button className="btn-action btn-edit" onClick={() => openEdit(coupon)} title="Chỉnh sửa">
-                            <AdminIcon name="fa fa-pen" />
-                          </button>
-                          <button className="btn-action" onClick={() => togglePausedState(coupon.id)} title="Tạm dừng / tiếp tục">
-                            <AdminIcon name={coupon.status === 'paused' ? 'fa-play' : 'fa-pause'} />
-                          </button>
-                          <button className="btn-action btn-delete" onClick={() => handleDelete(coupon.id)} title="Xóa">
-                            <AdminIcon name="fa fa-trash" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        )}
+                        <button type="button" className="is-danger" disabled={busy || coupon.used > 0} onClick={() => void deleteCoupon(coupon)} aria-label={`Xóa ${coupon.code}`} title={coupon.used > 0 ? 'Đã có lượt dùng — chỉ có thể tạm dừng' : 'Xóa'}>
+                          <AdminIcon name="fa-trash" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {showForm ? (
-        <div className="modal active" onClick={closeForm}>
-          <div className="modal-dialog marketing-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h3>{editId ? 'Cập nhật coupon' : 'Thêm ma giảm giá'}</h3>
-                <button className="modal-close" onClick={closeForm}>
-                  <AdminIcon name="fa fa-times" />
-                </button>
-              </div>
+        <footer className="coupon-table-footer">
+          <p>Hiển thị <strong>{visibleCoupons.length}</strong> / {filteredCoupons.length} mã phù hợp · Tổng {coupons.length} mã</p>
+          {totalPages > 1 && (
+            <nav className="coupon-pagination" aria-label="Phân trang coupon">
+              <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} aria-label="Trang trước"><AdminIcon name="fa-chevron-left" /></button>
+              <span>Trang <b>{page}</b> / {totalPages}</span>
+              <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages} aria-label="Trang sau"><AdminIcon name="fa-chevron-right" /></button>
+            </nav>
+          )}
+        </footer>
+      </section>
 
-              <div className="modal-body marketing-modal-body single-column">
-                <div className="marketing-form-column">
-                  {error ? (
-                    <div className="alert alert-danger">
-                      <AdminIcon name="fa fa-circle-exclamation" /> {error}
-                    </div>
-                  ) : null}
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label required">Ma coupon</label>
-                      <input
-                        className="form-control"
-                        value={form.code}
-                        onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
-                        placeholder="SUMMER25"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Trạng thái nội bộ</label>
-                      <select
-                        className="form-control"
-                        value={form.status}
-                        onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as 'active' | 'paused' }))}
-                      >
-                        <option value="active">Dang bat</option>
-                        <option value="paused">Tạm dừng</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Mô tả</label>
-                    <input
-                      className="form-control"
-                      value={form.description}
-                      onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                      placeholder="Giảm giá cho đơn hàng online"
-                    />
-                  </div>
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label">Loai giảm giá</label>
-                      <select
-                        className="form-control"
-                        value={form.discountType}
-                        onChange={(event) => setForm((current) => ({ ...current, discountType: event.target.value as CouponDiscountType }))}
-                      >
-                        <option value="percent">Phan tram</option>
-                        <option value="fixed">So tien có dinh</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Giá trị</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min={0}
-                        value={form.discountValue}
-                        onChange={(event) => setForm((current) => ({ ...current, discountValue: Number(event.target.value) || 0 }))}
-                      />
-                    </div>
-                  </div>
-
-                  {form.discountType === 'percent' ? (
-                    <div className="form-group">
-                      <label className="form-label">Trần giảm tối đa</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min={0}
-                        value={form.maxDiscount || 0}
-                        onChange={(event) => setForm((current) => ({ ...current, maxDiscount: Number(event.target.value) || 0 }))}
-                        placeholder="0 = không gioi han"
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label">Don tối thiểu</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min={0}
-                        value={form.minOrder}
-                        onChange={(event) => setForm((current) => ({ ...current, minOrder: Number(event.target.value) || 0 }))}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Tong luot sử dụng</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min={0}
-                        value={form.quantity}
-                        onChange={(event) => setForm((current) => ({ ...current, quantity: Number(event.target.value) || 0 }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label">Da sử dụng</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min={0}
-                        value={form.used}
-                        onChange={(event) => setForm((current) => ({ ...current, used: Number(event.target.value) || 0 }))}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Hiển thị công khai</label>
-                      <label className="form-check marketing-inline-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          checked={form.isPublic}
-                          onChange={(event) => setForm((current) => ({ ...current, isPublic: event.target.checked }))}
-                        />
-                        <span className="form-check-label">Cho phép hiển thị trong danh sách ưu đãi</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label className="form-label">Bắt đầu</label>
-                      <input
-                        className="form-control"
-                        type="date"
-                        value={form.startDate}
-                        onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label required">Ket thuc</label>
-                      <input
-                        className="form-control"
-                        type="date"
-                        value={form.endDate}
-                        onChange={(event) => setForm((current) => ({ ...current, endDate: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="marketing-preview-card">
-                    <span className={`marketing-status-pill ${previewCouponStatus}`}>{STATUS_LABELS[previewCouponStatus]}</span>
-                    <h3>{form.code || 'MA-COUPON'}</h3>
-                    <p>{form.description || 'Mô tả coupon sẽ hiển thị ở đây.'}</p>
-                    <div className="marketing-preview-discount">
-                      {form.discountType === 'percent' ? `${form.discountValue}%` : formatCurrency(form.discountValue)}
-                    </div>
-                    <ul className="marketing-preview-list">
-                      <li>Don tối thiểu: {form.minOrder > 0 ? formatCurrency(form.minOrder) : 'Không gioi han'}</li>
-                      <li>Mẫu tính trên đơn 800.000đ: giảm {formatCurrency(previewDiscount)}</li>
-                      <li>Tiến độ: {Math.min(form.used, form.quantity)}/{form.quantity}</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button className="btn btn-outline" onClick={closeForm}>Động</button>
-                <button className="btn btn-primary" onClick={handleSave}>
-                  <AdminIcon name="fa fa-save" /> Lưu coupon
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
+      <CouponDrawer
+        open={drawerOpen}
+        coupon={editingCoupon}
+        saving={saving}
+        serverError={formError}
+        onClose={closeDrawer}
+        onSubmit={(values) => void saveCoupon(values)}
+      />
+    </main>
   );
 }
