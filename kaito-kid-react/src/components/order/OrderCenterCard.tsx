@@ -84,7 +84,7 @@ export default function OrderCenterCard({ order, returnInfo, reordering, onDetai
         {canTrackCustomerOrder(order) && <button type="button" className="oc-btn oc-btn-primary" onClick={onTrack}><i className="fa fa-truck" /> Theo dõi đơn</button>}
         {order.status === 'completed' && reviewItems.length > 0 && <button type="button" className="oc-btn oc-btn-warm" onClick={onReview}><i className="fa fa-star" /> Đánh giá ({reviewItems.length})</button>}
         {(order.status === 'completed' || order.status === 'cancelled') && <button type="button" className="oc-btn oc-btn-soft" onClick={onReorder} disabled={reordering}><i className="fa fa-redo" /> {reordering ? 'Đang thêm...' : 'Mua lại'}</button>}
-        {order.status === 'completed' && (returnInfo?.eligible || returnInfo?.request) && <button type="button" className="oc-btn oc-btn-outline" onClick={onReturn}><i className="fa fa-undo" /> {returnInfo?.request ? 'Xem đổi/trả' : 'Yêu cầu đổi/trả'}</button>}
+        {order.status === 'completed' && <button type="button" className="oc-btn oc-btn-outline" onClick={onReturn}><i className="fa fa-undo" /> {returnInfo?.request ? 'Xem đổi/trả' : 'Đổi / Trả hàng'}</button>}
         {['confirmed', 'shipping', 'completed'].includes(order.status) && <button type="button" className="oc-btn oc-btn-ghost" onClick={onInvoice}><i className="fa fa-file-invoice" /> Hóa đơn</button>}
         {canCancelCustomerOrder(order) && <button type="button" className="oc-btn oc-btn-danger-ghost" onClick={onCancel}><i className="fa fa-times" /> Hủy đơn</button>}
       </footer>
