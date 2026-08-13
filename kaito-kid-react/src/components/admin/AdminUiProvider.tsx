@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import AdminIcon from './AdminIcon';
 
 
@@ -52,28 +53,48 @@ interface ToastRecord {
 }
 
 const DEFAULT_CONFIRM: Omit<ConfirmState, 'resolve'> = {
-  title: 'Xac nhan thao tac',
+  title: 'Xác nhận thao tác',
   message: '',
-  confirmLabel: 'Xac nhan',
-  cancelLabel: 'Huy',
+  confirmLabel: 'Xác nhận',
+  cancelLabel: 'Hủy',
   tone: 'primary',
   icon: 'fa-circle-question',
 };
 
 const AdminUiContext = createContext<AdminUiContextValue | null>(null);
 
-function getConfirmButtonClass(tone: AdminConfirmTone) {
+function getConfirmPalette(tone: AdminConfirmTone) {
   switch (tone) {
     case 'danger':
-      return 'btn btn-danger';
+      return {
+        iconBg: '#fff0ee',
+        iconColor: '#b42318',
+        buttonBg: '#dc2626',
+        buttonHover: '#b91c1c',
+      };
     case 'warning':
-      return 'btn btn-warning';
+      return {
+        iconBg: '#fff7df',
+        iconColor: '#b45309',
+        buttonBg: '#d97706',
+        buttonHover: '#b45309',
+      };
     case 'success':
-      return 'btn btn-success';
-    case 'primary':
+      return {
+        iconBg: '#e8f7f3',
+        iconColor: '#0f766e',
+        buttonBg: '#0f766e',
+        buttonHover: '#0b5f59',
+      };
     case 'default':
+    case 'primary':
     default:
-      return 'btn btn-primary';
+      return {
+        iconBg: '#eeeeff',
+        iconColor: '#5b5bd6',
+        buttonBg: '#5b5bd6',
+        buttonHover: '#4747b8',
+      };
   }
 }
 
@@ -95,6 +116,8 @@ export function AdminUiProvider({ children }: { children: ReactNode }) {
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
   const timeoutIdsRef = useRef<number[]>([]);
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const dismissToast = useCallback((toastId: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== toastId));
@@ -153,6 +176,17 @@ export function AdminUiProvider({ children }: { children: ReactNode }) {
       return undefined;
     }
 
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    window.requestAnimationFrame(() => {
+      confirmButtonRef.current?.focus();
+    });
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeConfirm(false);
@@ -160,8 +194,11 @@ export function AdminUiProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus();
     };
   }, [closeConfirm, confirmState]);
 
@@ -169,6 +206,178 @@ export function AdminUiProvider({ children }: { children: ReactNode }) {
     confirm,
     notify,
   }), [confirm, notify]);
+
+  const confirmPortal = confirmState && typeof document !== 'undefined'
+    ? createPortal((() => {
+        const palette = getConfirmPalette(confirmState.tone);
+
+        return (
+          <div
+            className="admin-confirm-portal-overlay"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                closeConfirm(false);
+              }
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 2147483000,
+              display: 'grid',
+              placeItems: 'center',
+              padding: '24px',
+              background: 'rgba(15, 23, 42, 0.52)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+            }}
+          >
+            <section
+              className="admin-confirm-portal-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-confirm-title"
+              aria-describedby="admin-confirm-message"
+              onMouseDown={(event) => event.stopPropagation()}
+              style={{
+                width: 'min(100%, 480px)',
+                maxHeight: 'calc(100vh - 48px)',
+                overflow: 'auto',
+                borderRadius: '20px',
+                border: '1px solid rgba(226, 232, 240, 0.95)',
+                background: '#ffffff',
+                color: '#111827',
+                boxShadow: '0 28px 80px rgba(15, 23, 42, 0.28)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  padding: '24px 24px 18px',
+                }}
+              >
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    flex: '0 0 48px',
+                    display: 'grid',
+                    placeItems: 'center',
+                    borderRadius: '15px',
+                    background: palette.iconBg,
+                    color: palette.iconColor,
+                    fontSize: '19px',
+                  }}
+                >
+                  <AdminIcon name={confirmState.icon} />
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3
+                    id="admin-confirm-title"
+                    style={{
+                      margin: '1px 0 8px',
+                      color: '#111827',
+                      fontSize: '19px',
+                      fontWeight: 800,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {confirmState.title}
+                  </h3>
+                  <p
+                    id="admin-confirm-message"
+                    style={{
+                      margin: 0,
+                      color: '#64748b',
+                      fontSize: '14px',
+                      lineHeight: 1.65,
+                    }}
+                  >
+                    {confirmState.message}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => closeConfirm(false)}
+                  aria-label="Đóng xác nhận"
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    flex: '0 0 38px',
+                    display: 'grid',
+                    placeItems: 'center',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '12px',
+                    background: '#f8fafc',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <AdminIcon name="fa-xmark" />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  padding: '16px 24px 22px',
+                  borderTop: '1px solid #edf0f5',
+                  background: '#fbfcfe',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => closeConfirm(false)}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0 18px',
+                    border: '1px solid #dbe1ea',
+                    borderRadius: '12px',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {confirmState.cancelLabel}
+                </button>
+                <button
+                  ref={confirmButtonRef}
+                  type="button"
+                  onClick={() => closeConfirm(true)}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.background = palette.buttonHover;
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.background = palette.buttonBg;
+                  }}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0 20px',
+                    border: 'none',
+                    borderRadius: '12px',
+                    background: palette.buttonBg,
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: `0 10px 24px ${palette.iconBg}`,
+                  }}
+                >
+                  {confirmState.confirmLabel}
+                </button>
+              </div>
+            </section>
+          </div>
+        );
+      })(), document.body)
+    : null;
 
   return (
     <AdminUiContext.Provider value={value}>
@@ -190,58 +399,15 @@ export function AdminUiProvider({ children }: { children: ReactNode }) {
               type="button"
               className="admin-ui-toast-close"
               onClick={() => dismissToast(toast.id)}
-              aria-label="Dong thông báo"
+              aria-label="Đóng thông báo"
             >
-              <AdminIcon name="fa fa-xmark" />
+              <AdminIcon name="fa-xmark" />
             </button>
           </div>
         ))}
       </div>
 
-      {confirmState && (
-        <div
-          className="modal-overlay active admin-confirm-overlay"
-          onClick={() => closeConfirm(false)}
-        >
-          <div
-            className="modal admin-confirm-modal"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admin-confirm-title"
-          >
-            <div className="modal-header admin-confirm-header">
-              <div className={`admin-confirm-icon tone-${confirmState.tone}`}>
-                <AdminIcon name={confirmState.icon} />
-              </div>
-              <div className="admin-confirm-copy">
-                <h3 id="admin-confirm-title" className="modal-title">{confirmState.title}</h3>
-                <p className="admin-confirm-message">{confirmState.message}</p>
-              </div>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => closeConfirm(false)}
-                aria-label="Dong xac nhan"
-              >
-                <AdminIcon name="fa fa-xmark" />
-              </button>
-            </div>
-            <div className="modal-footer admin-confirm-footer">
-              <button type="button" className="btn btn-outline" onClick={() => closeConfirm(false)}>
-                {confirmState.cancelLabel}
-              </button>
-              <button
-                type="button"
-                className={getConfirmButtonClass(confirmState.tone)}
-                onClick={() => closeConfirm(true)}
-              >
-                {confirmState.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmPortal}
     </AdminUiContext.Provider>
   );
 }
