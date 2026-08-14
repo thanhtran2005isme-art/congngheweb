@@ -9,8 +9,7 @@ import { StaffAuthProvider } from './context/StaffAuthContext';
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
-import AdminLayout from './components/admin/AdminLayout';
-import { AdminUiProvider } from './components/admin/AdminUiProvider';
+import AdminShell from './components/admin/AdminShell';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { I18nProvider } from './i18n/I18nContext';
@@ -127,14 +126,16 @@ function App() {
 
             {/* Trang Admin - dùng Sidebar riêng + StaffAuth */}
             <Route element={<AdminProtectedRoute />}>
-              <Route path="/admin" element={<AdminUiProvider><AdminLayout /></AdminUiProvider>}>
+              <Route path="/admin" element={<AdminShell />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<AdminProducts />} />
                 <Route path="products/add" element={<AdminProductAdd />} />
                 <Route path="products/edit/:id" element={<AdminProductAdd />} />
                 <Route path="orders" element={<AdminOrders />} />
-                <Route path="returns" element={<AdminReturns />} />
+                <Route element={<AdminProtectedRoute permission="orders.view" />}>
+                  <Route path="returns" element={<AdminReturns />} />
+                </Route>
                 <Route path="customers" element={<AdminCustomers />} />
                 <Route path="chat" element={<AdminChat />} />
                 <Route path="categories" element={<AdminCategories />} />
