@@ -28,7 +28,11 @@ export default function OrderReturnDialog({ order, info, reason, note, submittin
   }, [onClose]);
 
   const request = info?.request;
-  const statusMeta = request ? (RETURN_STATUS_META[request.status] || { label: request.status, tone: 'neutral' }) : null;
+  const statusMeta = request
+    ? request.status === 'completed'
+      ? { label: 'Hoàn tất hậu mãi', tone: 'success' }
+      : (RETURN_STATUS_META[request.status] || { label: request.status, tone: 'neutral' })
+    : null;
 
   return (
     <div className="order-dialog-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
