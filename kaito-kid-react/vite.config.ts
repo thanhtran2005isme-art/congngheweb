@@ -8,7 +8,10 @@ export default defineConfig({
     host: '0.0.0.0', // Listen on all interfaces
     port: 5173,
     strictPort: true,
+    // Chỉ whitelist các hostname public thực sự dùng qua Cloudflare Tunnel.
+    // Không dùng allowedHosts: true để tránh mở dev server cho Host header tùy ý.
+    allowedHosts: ['kaitokid.io.vn', 'www.kaitokid.io.vn'],
     // Không hard-code HMR về kaitokid.io.vn.
-    // Khi chạy localhost, Vite sẽ tự dùng ws://localhost:5173.
+    // Localhost vẫn dùng ws://localhost:5173; qua HTTPS tunnel Vite sẽ tự dùng host hiện tại.
   },
 })
