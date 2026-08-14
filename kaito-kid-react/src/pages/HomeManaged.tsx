@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Home from './Home';
 import HomepageProductSectionStack from '../components/home/HomepageProductSectionStack';
+import type { Product } from '../types';
 
 const LEGACY_SECTION_IDS = [
   'section-newarrivals',
   'section-saleproducts',
   'section-bestsellers',
 ] as const;
+
+// Keep these references stable. Passing no props makes HomepageProductSectionStack
+// create fresh [] default values on each render, retriggering its effects forever.
+const EMPTY_PRODUCTS: Product[] = [];
 
 export default function HomeManaged() {
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
@@ -64,7 +69,14 @@ export default function HomeManaged() {
   return (
     <>
       <Home />
-      {mountNode && createPortal(<HomepageProductSectionStack />, mountNode)}
+      {mountNode && createPortal(
+        <HomepageProductSectionStack
+          automaticNewArrivals={EMPTY_PRODUCTS}
+          automaticSaleProducts={EMPTY_PRODUCTS}
+          automaticBestSellers={EMPTY_PRODUCTS}
+        />,
+        mountNode,
+      )}
     </>
   );
 }
