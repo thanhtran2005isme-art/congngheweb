@@ -58,6 +58,7 @@ const menuItems: MenuItem[] = [
       { path: '/admin/orders?status=shipping', label: 'Đang giao' },
       { path: '/admin/orders?status=completed', label: 'Hoàn thành' },
       { path: '/admin/orders?status=cancelled', label: 'Đã huỷ' },
+      { path: '/admin/returns', label: 'Đổi / Trả hàng' },
     ],
   },
   {
