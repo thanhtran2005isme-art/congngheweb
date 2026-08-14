@@ -79,7 +79,7 @@ if errorlevel 1 goto backend_failed
 echo.
 echo ========================================
 echo   Backend ports are healthy
-necho ========================================
+echo ========================================
 echo   Auth     : 5053  OK
 echo   Admin    : 5089  OK
 echo   Customer : 5265  OK
@@ -153,7 +153,7 @@ goto wait_port_loop
 echo.
 echo ========================================
 echo   BACKEND START FAILED
-necho ========================================
+echo ========================================
 echo One API did not open its expected port.
 echo Cloudflare Tunnel was NOT started, so the public site will not hide this as a 502.
 echo Check the API terminal window that shows a build/runtime exception.
@@ -165,7 +165,7 @@ exit /b 1
 echo.
 echo ========================================
 echo   FRONTEND START FAILED
-necho ========================================
+echo ========================================
 echo Vite did not open port 5173. Check the Frontend terminal window.
 echo.
 pause
